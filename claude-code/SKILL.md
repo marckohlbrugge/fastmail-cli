@@ -7,6 +7,34 @@ Help the user manage their Fastmail account using the `fm` CLI tool.
 
 User request: $ARGUMENTS
 
+## Safety Rules (MUST FOLLOW)
+
+**NEVER use `--unsafe` or `FM_UNSAFE=1` without explicit user consent for each specific action.** If a command fails due to safe mode, you MUST ask the user for permission before retrying with unsafe mode. Do not automatically bypass safety features.
+
+**Destructive actions require explicit consent:**
+- `fm email delete` - Ask before each delete
+- `fm draft delete` - Ask before each delete
+- `fm draft send` - Ask before sending (see below)
+
+**Always prefer creating drafts over sending emails.** Unless the user explicitly says "send this email", create a draft instead. This lets the user review before sending. If you're unsure whether to send or draft, ask.
+
+**When triaging multiple emails**, use AskUserQuestion to let the user decide on each email interactively. Suggest options like:
+- Archive (recommended for newsletters, notifications)
+- Reply (show draft preview)
+- Delete
+- Skip / Keep in inbox
+
+Example:
+```
+Email from: newsletter@example.com
+Subject: Weekly digest
+
+What would you like to do?
+[ ] Archive (Recommended)
+[ ] Delete
+[ ] Skip
+```
+
 ## Command Reference
 
 ### Inbox & Search
@@ -122,17 +150,17 @@ fm search --help
 fm search "from:alice is:unread"
 ```
 
-**Archive all newsletters:**
-```bash
-fm search "from:newsletter@example.com" --limit 100
-# Then archive each by ID
-```
+**Triage inbox (interactive):**
+1. List emails: `fm inbox`
+2. For each email, use AskUserQuestion to let user choose: Archive / Reply / Delete / Skip
+3. Only perform destructive actions after user confirms each one
 
-**Quick reply:**
+**Reply to an email (prefer drafts):**
 ```bash
 fm email read M123  # Read the email first
 fm draft reply M123 --body "Sounds good, thanks!"
-fm draft send <draft-id>
+# Tell user: "Draft created. Would you like me to send it?"
+# Only send after explicit confirmation
 ```
 
 **Find emails with attachments:**
@@ -143,5 +171,6 @@ fm search "has:attachment from:team"
 ## Environment Variables
 
 - `FASTMAIL_TOKEN` - API token (overrides stored credentials)
-- `FM_UNSAFE=1` - Allow destructive operations in non-interactive mode
 - `NO_COLOR` - Disable color output
+
+Note: `FM_UNSAFE=1` exists but should NEVER be used without explicit user consent for each action.
