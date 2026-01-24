@@ -37,6 +37,12 @@ fm draft send M9876543210
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew install marckohlbrugge/tap/fm --HEAD
+```
+
 ### From Source
 
 ```bash
@@ -113,6 +119,22 @@ Example JSON output:
   }
 ]
 ```
+
+## Claude Code Integration
+
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add the included skill to let Claude manage your email:
+
+```bash
+mkdir -p ~/.claude/skills
+cp claude-code/SKILL.md ~/.claude/skills/fastmail.md
+```
+
+Then ask Claude things like:
+- "Check my inbox for unread emails"
+- "Search for emails from Alice about the project"
+- "Draft a reply to the last email from Bob"
+
+See [claude-code/SKILL.md](claude-code/SKILL.md) for the full command reference.
 
 ## Authentication
 
