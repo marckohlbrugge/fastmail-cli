@@ -1,0 +1,27 @@
+# Binary
+/fm
+/fastmail-cli
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Node reference (keep source, ignore deps)
+node/node_modules/
+node/dist/
