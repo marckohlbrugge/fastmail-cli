@@ -22,9 +22,5 @@ go.work.sum
 # OS
 .DS_Store
 
-# Node reference (keep source, ignore deps)
-node/node_modules/
-node/dist/
-
 # Reference material
 inspiration/
