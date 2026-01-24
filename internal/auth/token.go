@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zalando/go-keyring"
+	"github.com/marckohlbrugge/fastmail-cli/internal/keyring"
 )
 
 const (
