@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/auth"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/completion"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/draft"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/email"
@@ -52,6 +53,10 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 
 	// Add command groups
 	cmd.AddGroup(&cobra.Group{
+		ID:    "auth",
+		Title: "Authentication",
+	})
+	cmd.AddGroup(&cobra.Group{
 		ID:    "core",
 		Title: "Core commands",
 	})
@@ -71,6 +76,9 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 		ID:    "utility",
 		Title: "Utility commands",
 	})
+
+	// Auth commands
+	cmd.AddCommand(auth.NewCmdAuth(f))
 
 	// Core commands (top-level)
 	cmd.AddCommand(inbox.NewCmdInbox(f))
@@ -182,8 +190,12 @@ func printRootHelp(w io.Writer, cmd *cobra.Command) {
 	fmt.Fprintln(w, "  Use 'fm <command> --help' for more information about a command.")
 	fmt.Fprintln(w)
 
+	fmt.Fprintln(w, "AUTHENTICATION")
+	fmt.Fprintln(w, "  Run 'fm auth login' to authenticate with your Fastmail account.")
+	fmt.Fprintln(w)
+
 	fmt.Fprintln(w, "ENVIRONMENT")
-	fmt.Fprintln(w, "  FASTMAIL_TOKEN  API token (or use 1Password: op://Services/Fastmail/credential)")
+	fmt.Fprintln(w, "  FASTMAIL_TOKEN  API token (overrides stored credentials)")
 	fmt.Fprintln(w, "  FM_UNSAFE=1     Allow destructive operations in non-interactive mode")
 	fmt.Fprintln(w, "  NO_COLOR        Disable color output")
 }
