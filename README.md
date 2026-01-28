@@ -53,6 +53,22 @@ go build -o fm ./cmd/fm
 
 Then move `fm` to somewhere in your PATH, or add the directory to your PATH.
 
+## Upgrading
+
+### Homebrew
+
+```bash
+brew upgrade marckohlbrugge/tap/fm
+```
+
+### From Source
+
+```bash
+cd fastmail-cli
+git pull
+go build -o fm ./cmd/fm
+```
+
 ## Commands
 
 ### Core Commands
