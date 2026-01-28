@@ -3,7 +3,6 @@ package inbox
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmdutil"
@@ -12,8 +11,9 @@ import (
 )
 
 type inboxOptions struct {
-	Limit int
-	JSON  bool
+	Limit  int
+	JSON   bool
+	Fields string
 }
 
 // NewCmdInbox creates the inbox command.
@@ -25,13 +25,16 @@ func NewCmdInbox(f *cmdutil.Factory) *cobra.Command {
 		Short: "List recent inbox emails",
 		Long: `List recent emails from your inbox.
 
-Displays email ID, date, sender, and subject. Unread emails are marked with *.
-Emails with attachments are marked with +.`,
+By default displays email ID, date, sender, and subject.
+Use --fields to customize which columns are shown.`,
 		Example: `  # List recent inbox emails
   fm inbox
 
   # List last 10 emails
   fm inbox --limit 10
+
+  # Show custom fields
+  fm inbox --fields "id,date,from,to,subject"
 
   # Output as JSON (for scripting)
   fm inbox --json`,
@@ -44,6 +47,7 @@ Emails with attachments are marked with +.`,
 
 	cmd.Flags().IntVar(&opts.Limit, "limit", 20, "Number of emails to show (max 50)")
 	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Output in JSON format")
+	cmd.Flags().StringVar(&opts.Fields, "fields", "", "Comma-separated list of fields to display (id,threadId,subject,from,to,cc,date,preview,unread,attachment)")
 
 	return cmd
 }
@@ -51,6 +55,12 @@ Emails with attachments are marked with +.`,
 func runInbox(f *cmdutil.Factory, opts *inboxOptions) error {
 	client, err := f.JMAPClient()
 	if err != nil {
+		return err
+	}
+
+	// Parse and validate fields
+	fields := cmdutil.ParseFields(opts.Fields)
+	if err := cmdutil.ValidateFields(fields); err != nil {
 		return err
 	}
 
@@ -70,19 +80,21 @@ func runInbox(f *cmdutil.Factory, opts *inboxOptions) error {
 		return outputJSON(f, emails)
 	}
 
-	return outputHuman(f, emails)
+	return outputHuman(f, emails, fields)
 }
 
 func outputJSON(f *cmdutil.Factory, emails []jmap.Email) error {
 	type jsonEmail struct {
-		ID            string             `json:"id"`
-		ThreadID      string             `json:"threadId"`
-		Subject       string             `json:"subject"`
+		ID            string              `json:"id"`
+		ThreadID      string              `json:"threadId"`
+		Subject       string              `json:"subject"`
 		From          []jmap.EmailAddress `json:"from"`
-		ReceivedAt    time.Time          `json:"receivedAt"`
-		IsUnread      bool               `json:"isUnread"`
-		HasAttachment bool               `json:"hasAttachment"`
-		Preview       string             `json:"preview"`
+		To            []jmap.EmailAddress `json:"to"`
+		CC            []jmap.EmailAddress `json:"cc,omitempty"`
+		ReceivedAt    time.Time           `json:"receivedAt"`
+		IsUnread      bool                `json:"isUnread"`
+		HasAttachment bool                `json:"hasAttachment"`
+		Preview       string              `json:"preview"`
 	}
 
 	output := make([]jsonEmail, len(emails))
@@ -92,6 +104,8 @@ func outputJSON(f *cmdutil.Factory, emails []jmap.Email) error {
 			ThreadID:      e.ThreadID,
 			Subject:       e.Subject,
 			From:          e.From,
+			To:            e.To,
+			CC:            e.CC,
 			ReceivedAt:    e.ReceivedAt,
 			IsUnread:      e.IsUnread(),
 			HasAttachment: e.HasAttachment,
@@ -104,7 +118,7 @@ func outputJSON(f *cmdutil.Factory, emails []jmap.Email) error {
 	return encoder.Encode(output)
 }
 
-func outputHuman(f *cmdutil.Factory, emails []jmap.Email) error {
+func outputHuman(f *cmdutil.Factory, emails []jmap.Email, fields []string) error {
 	out := f.IOStreams.Out
 
 	if len(emails) == 0 {
@@ -112,77 +126,8 @@ func outputHuman(f *cmdutil.Factory, emails []jmap.Email) error {
 		return nil
 	}
 
-	for _, email := range emails {
-		unreadMarker := " "
-		if email.IsUnread() {
-			unreadMarker = "*"
-		}
-		attachmentMarker := " "
-		if email.HasAttachment {
-			attachmentMarker = "+"
-		}
+	cmdutil.PrintEmailList(out, emails, fields)
 
-		from := "(unknown)"
-		if len(email.From) > 0 {
-			from = formatSender(email.From[0])
-		}
-
-		date := formatRelativeDate(email.ReceivedAt)
-		subject := email.Subject
-		if subject == "" {
-			subject = "(no subject)"
-		}
-
-		// Truncate for display
-		id := truncate(email.ID, 12)
-		from = truncate(from, 30)
-		subject = truncate(subject, 50)
-
-		fmt.Fprintf(out, "%s%s %-12s  %-12s  %-30s  %s\n",
-			unreadMarker, attachmentMarker, id, date, from, subject)
-	}
-
-	fmt.Fprintf(out, "\n%d emails (* = unread, + = attachment)\n", len(emails))
+	fmt.Fprintf(out, "\n%d emails\n", len(emails))
 	return nil
-}
-
-func formatSender(addr jmap.EmailAddress) string {
-	if addr.Name != "" {
-		return addr.Name
-	}
-	// Just show the part before @ for brevity
-	parts := strings.Split(addr.Email, "@")
-	return parts[0]
-}
-
-func formatRelativeDate(t time.Time) string {
-	now := time.Now()
-	diff := now.Sub(t)
-
-	switch {
-	case diff < time.Hour:
-		mins := int(diff.Minutes())
-		if mins <= 1 {
-			return "just now"
-		}
-		return fmt.Sprintf("%dm ago", mins)
-	case diff < 24*time.Hour:
-		hours := int(diff.Hours())
-		return fmt.Sprintf("%dh ago", hours)
-	case diff < 48*time.Hour:
-		return "Yesterday"
-	case diff < 7*24*time.Hour:
-		return t.Weekday().String()[:3]
-	case t.Year() == now.Year():
-		return t.Format("Jan 2")
-	default:
-		return t.Format("Jan 2, 2006")
-	}
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-1] + "…"
 }
