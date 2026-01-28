@@ -32,7 +32,17 @@ Supports text search and filter operators:
   to:bob         - Emails to bob
   subject:hello  - Subject contains hello
   has:attachment - Has attachments
-  is:unread      - Unread emails only`,
+  is:unread      - Unread emails only
+  is:read        - Read emails only
+  is:flagged     - Flagged/starred emails
+  before:DATE    - Emails before date (YYYY-MM-DD)
+  after:DATE     - Emails after date (YYYY-MM-DD)
+
+Boolean operators (case-insensitive):
+  OR             - Match either term
+  AND            - Match both terms (also implicit between terms)
+  NOT            - Exclude matching emails
+  ()             - Group expressions`,
 		Example: `  # Search for emails from alice
   fm search "from:alice"
 
@@ -41,6 +51,15 @@ Supports text search and filter operators:
 
   # Search with attachments
   fm search "has:attachment from:bob"
+
+  # Boolean OR: match either term
+  fm search "hiring OR discount"
+
+  # Boolean AND with NOT
+  fm search "from:newsletter AND NOT is:unread"
+
+  # Grouped expressions
+  fm search "(from:alice OR from:bob) AND subject:meeting"
 
   # Search in a specific folder
   fm search "from:newsletter" --folder inbox

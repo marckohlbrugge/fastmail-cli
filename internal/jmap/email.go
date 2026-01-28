@@ -190,39 +190,7 @@ func (c *Client) Search(filters SearchFilters) ([]Email, error) {
 		return nil, err
 	}
 
-	filter := make(map[string]interface{})
-
-	if filters.Query != "" {
-		filter["text"] = filters.Query
-	}
-	if filters.From != "" {
-		filter["from"] = filters.From
-	}
-	if filters.To != "" {
-		filter["to"] = filters.To
-	}
-	if filters.Subject != "" {
-		filter["subject"] = filters.Subject
-	}
-	if filters.HasAttachment != nil {
-		filter["hasAttachment"] = *filters.HasAttachment
-	}
-	if filters.IsUnread != nil {
-		if *filters.IsUnread {
-			filter["notKeyword"] = "$seen"
-		} else {
-			filter["hasKeyword"] = "$seen"
-		}
-	}
-	if filters.MailboxID != "" {
-		filter["inMailbox"] = filters.MailboxID
-	}
-	if filters.Before != "" {
-		filter["before"] = filters.Before
-	}
-	if filters.After != "" {
-		filter["after"] = filters.After
-	}
+	filter := c.buildSearchFilter(filters)
 
 	limit := filters.Limit
 	if limit <= 0 {
@@ -464,6 +432,69 @@ func (c *Client) parseEmailsFromResponse(resp *Response, index int) ([]Email, er
 	}
 
 	return result.List, nil
+}
+
+// buildSearchFilter constructs a JMAP filter from SearchFilters.
+// It supports boolean operators (AND, OR, NOT) in the Query field.
+func (c *Client) buildSearchFilter(filters SearchFilters) map[string]interface{} {
+	// Parse the query for boolean operators
+	var queryFilter Filter
+	if filters.Query != "" {
+		queryFilter = ParseQuery(filters.Query)
+	}
+
+	// Build additional filters from structured fields
+	var additionalFilters []Filter
+
+	if filters.From != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "from", Value: filters.From})
+	}
+	if filters.To != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "to", Value: filters.To})
+	}
+	if filters.Subject != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "subject", Value: filters.Subject})
+	}
+	if filters.HasAttachment != nil {
+		additionalFilters = append(additionalFilters, &HasAttachmentFilter{Value: *filters.HasAttachment})
+	}
+	if filters.IsUnread != nil {
+		if *filters.IsUnread {
+			additionalFilters = append(additionalFilters, &TextFilter{Field: "notKeyword", Value: "$seen"})
+		} else {
+			additionalFilters = append(additionalFilters, &TextFilter{Field: "hasKeyword", Value: "$seen"})
+		}
+	}
+	if filters.MailboxID != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "inMailbox", Value: filters.MailboxID})
+	}
+	if filters.Before != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "before", Value: filters.Before})
+	}
+	if filters.After != "" {
+		additionalFilters = append(additionalFilters, &TextFilter{Field: "after", Value: filters.After})
+	}
+
+	// Combine query filter with additional filters
+	var allFilters []Filter
+	if queryFilter != nil {
+		allFilters = append(allFilters, queryFilter)
+	}
+	allFilters = append(allFilters, additionalFilters...)
+
+	// No filters
+	if len(allFilters) == 0 {
+		return map[string]interface{}{}
+	}
+
+	// Single filter
+	if len(allFilters) == 1 {
+		return allFilters[0].ToJMAP()
+	}
+
+	// Multiple filters - combine with AND
+	combined := &BoolFilter{Operator: "AND", Conditions: allFilters}
+	return combined.ToJMAP()
 }
 
 // checkSetError checks for errors in an Email/set response.
