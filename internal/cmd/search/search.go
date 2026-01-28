@@ -23,9 +23,11 @@ func NewCmdSearch(f *cmdutil.Factory) *cobra.Command {
 	opts := &searchOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "search <query>",
+		Use:   "search [query]",
 		Short: "Search emails",
 		Long: `Search emails using Fastmail's search syntax.
+
+Query is optional when using --folder to list all emails in a folder.
 
 Supports text search and filter operators:
   from:alice     - Emails from alice
@@ -35,6 +37,7 @@ Supports text search and filter operators:
   is:unread      - Unread emails only
   is:read        - Read emails only
   is:flagged     - Flagged/starred emails
+  is:draft       - Draft emails
   before:DATE    - Emails before date (YYYY-MM-DD)
   after:DATE     - Emails after date (YYYY-MM-DD)
 
@@ -43,7 +46,13 @@ Boolean operators (case-insensitive):
   AND            - Match both terms (also implicit between terms)
   NOT            - Exclude matching emails
   ()             - Group expressions`,
-		Example: `  # Search for emails from alice
+		Example: `  # List all drafts
+  fm search --folder drafts
+
+  # List all emails in a folder
+  fm search --folder inbox --limit 100
+
+  # Search for emails from alice
   fm search "from:alice"
 
   # Search for meeting-related emails
@@ -61,18 +70,19 @@ Boolean operators (case-insensitive):
   # Grouped expressions
   fm search "(from:alice OR from:bob) AND subject:meeting"
 
-  # Search in a specific folder
+  # Search within a specific folder
   fm search "from:newsletter" --folder inbox
-
-  # Show custom fields (e.g., include recipients)
-  fm search "from:me" --fields "id,date,to,subject"
 
   # Output as JSON
   fm search "from:alice" --json`,
 		GroupID: "core",
-		Args:    cmdutil.ExactArgs(1, "search query required\n\nUsage: fm search <query>"),
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSearch(f, opts, args[0])
+			query := ""
+			if len(args) > 0 {
+				query = args[0]
+			}
+			return runSearch(f, opts, query)
 		},
 	}
 
@@ -178,7 +188,11 @@ func outputHuman(f *cmdutil.Factory, emails []jmap.Email, query string, fields [
 	out := f.IOStreams.Out
 
 	if len(emails) == 0 {
-		fmt.Fprintf(out, "No emails found matching: %s\n", query)
+		if query == "" {
+			fmt.Fprintln(out, "No emails found")
+		} else {
+			fmt.Fprintf(out, "No emails found matching: %s\n", query)
+		}
 		return nil
 	}
 
