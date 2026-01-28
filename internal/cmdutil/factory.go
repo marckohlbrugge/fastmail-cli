@@ -37,3 +37,8 @@ func (f *Factory) JMAPClient() (*jmap.Client, error) {
 	f.jmapClient = jmap.NewClient(token)
 	return f.jmapClient, nil
 }
+
+// SetJMAPClient sets a pre-configured JMAP client (for testing).
+func (f *Factory) SetJMAPClient(client *jmap.Client) {
+	f.jmapClient = client
+}

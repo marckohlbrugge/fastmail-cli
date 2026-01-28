@@ -1,6 +1,10 @@
 package jmap
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestEmail_IsUnread(t *testing.T) {
 	tests := []struct {
@@ -38,9 +42,7 @@ func TestEmail_IsUnread(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Email{Keywords: tt.keywords}
-			if got := e.IsUnread(); got != tt.want {
-				t.Errorf("IsUnread() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, e.IsUnread())
 		})
 	}
 }
@@ -81,9 +83,7 @@ func TestEmail_IsDraft(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Email{Keywords: tt.keywords}
-			if got := e.IsDraft(); got != tt.want {
-				t.Errorf("IsDraft() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, e.IsDraft())
 		})
 	}
 }
@@ -113,9 +113,7 @@ func TestEmailAddress_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.addr.String(); got != tt.want {
-				t.Errorf("String() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.addr.String())
 		})
 	}
 }
@@ -164,9 +162,7 @@ func TestFormatAddresses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FormatAddresses(tt.addrs); got != tt.want {
-				t.Errorf("FormatAddresses() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, FormatAddresses(tt.addrs))
 		})
 	}
 }

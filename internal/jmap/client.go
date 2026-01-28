@@ -57,6 +57,11 @@ func (c *Client) SetBaseURL(url string) {
 	c.baseURL = strings.TrimSuffix(url, "/")
 }
 
+// SetHTTPClient sets a custom HTTP client (for testing).
+func (c *Client) SetHTTPClient(client *http.Client) {
+	c.httpClient = client
+}
+
 // GetSession returns the JMAP session, fetching it if necessary.
 func (c *Client) GetSession() (*Session, error) {
 	if c.session != nil {

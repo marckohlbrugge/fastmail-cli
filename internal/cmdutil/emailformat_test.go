@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/marckohlbrugge/fastmail-cli/internal/jmap"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseFields(t *testing.T) {
@@ -39,16 +41,7 @@ func TestParseFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseFields(tt.fieldsArg)
-			if len(got) != len(tt.want) {
-				t.Errorf("ParseFields() = %v, want %v", got, tt.want)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("ParseFields()[%d] = %q, want %q", i, got[i], tt.want[i])
-				}
-			}
+			assert.Equal(t, tt.want, ParseFields(tt.fieldsArg))
 		})
 	}
 }
@@ -94,8 +87,10 @@ func TestValidateFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateFields(tt.fields)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateFields() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -148,9 +143,7 @@ func TestTruncate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := Truncate(tt.s, tt.maxLen); got != tt.want {
-				t.Errorf("Truncate() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, Truncate(tt.s, tt.maxLen))
 		})
 	}
 }
@@ -202,21 +195,15 @@ func TestFormatRelativeDate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatRelativeDate(tt.t)
-			if got != tt.want {
-				t.Errorf("FormatRelativeDate() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, FormatRelativeDate(tt.t))
 		})
 	}
 
 	// Test previous year separately to avoid date calculation issues
 	t.Run("previous year", func(t *testing.T) {
 		pastYear := time.Date(now.Year()-1, 6, 15, 10, 0, 0, 0, time.Local)
-		got := FormatRelativeDate(pastYear)
 		want := "Jun 15, " + pastYear.Format("2006")
-		if got != want {
-			t.Errorf("FormatRelativeDate() = %q, want %q", got, want)
-		}
+		assert.Equal(t, want, FormatRelativeDate(pastYear))
 	})
 }
 
@@ -262,9 +249,7 @@ func TestFormatAddresses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := formatAddresses(tt.addrs); got != tt.want {
-				t.Errorf("formatAddresses() = %q, want %q", got, tt.want)
-			}
+			assert.Equal(t, tt.want, formatAddresses(tt.addrs))
 		})
 	}
 }
@@ -281,38 +266,26 @@ func TestFormatEmailRow(t *testing.T) {
 
 	t.Run("formats with default fields", func(t *testing.T) {
 		row := FormatEmailRow(email, DefaultEmailFields)
-		if !strings.Contains(row, "abc123") {
-			t.Error("row should contain email ID")
-		}
-		if !strings.Contains(row, "Test Subject") {
-			t.Error("row should contain subject")
-		}
-		if !strings.Contains(row, "Sender") {
-			t.Error("row should contain sender name")
-		}
+		assert.Contains(t, row, "abc123")
+		assert.Contains(t, row, "Test Subject")
+		assert.Contains(t, row, "Sender")
 	})
 
 	t.Run("formats unread indicator", func(t *testing.T) {
 		row := FormatEmailRow(email, []string{"unread"})
-		if !strings.Contains(row, "*") {
-			t.Error("unread email should show *")
-		}
+		assert.Contains(t, row, "*")
 	})
 
 	t.Run("formats no subject placeholder", func(t *testing.T) {
 		noSubject := jmap.Email{ID: "123", Subject: ""}
 		row := FormatEmailRow(noSubject, []string{"subject"})
-		if !strings.Contains(row, "(no subject)") {
-			t.Error("empty subject should show placeholder")
-		}
+		assert.Contains(t, row, "(no subject)")
 	})
 
 	t.Run("formats unknown sender placeholder", func(t *testing.T) {
 		noFrom := jmap.Email{ID: "123", From: nil}
 		row := FormatEmailRow(noFrom, []string{"from"})
-		if !strings.Contains(row, "(unknown)") {
-			t.Error("empty from should show placeholder")
-		}
+		assert.Contains(t, row, "(unknown)")
 	})
 }
 
@@ -328,13 +301,7 @@ func TestPrintEmailList(t *testing.T) {
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
-	if len(lines) != 2 {
-		t.Errorf("expected 2 lines, got %d", len(lines))
-	}
-	if !strings.Contains(lines[0], "email1") {
-		t.Error("first line should contain email1")
-	}
-	if !strings.Contains(lines[1], "email2") {
-		t.Error("second line should contain email2")
-	}
+	require.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "email1")
+	assert.Contains(t, lines[1], "email2")
 }

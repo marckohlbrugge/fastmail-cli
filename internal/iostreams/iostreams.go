@@ -1,6 +1,7 @@
 package iostreams
 
 import (
+	"bytes"
 	"io"
 	"os"
 
@@ -37,16 +38,21 @@ func System() *IOStreams {
 	}
 }
 
-// Test returns IOStreams for testing with the provided readers/writers.
-func Test() *IOStreams {
+// Test returns IOStreams for testing with capturable buffers.
+// Returns (streams, stdin, stdout, stderr).
+func Test() (*IOStreams, *bytes.Buffer, *bytes.Buffer, *bytes.Buffer) {
+	in := &bytes.Buffer{}
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+
 	return &IOStreams{
-		In:          &nullReader{},
-		Out:         io.Discard,
-		ErrOut:      io.Discard,
+		In:          in,
+		Out:         out,
+		ErrOut:      errOut,
 		stdinIsTTY:  false,
 		stdoutIsTTY: false,
 		stderrIsTTY: false,
-	}
+	}, in, out, errOut
 }
 
 // IsStdinTTY returns true if stdin is connected to a terminal.
