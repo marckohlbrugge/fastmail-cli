@@ -117,7 +117,7 @@ func TestInboxCommand(t *testing.T) {
 		assert.Contains(t, output, "2 emails")
 	})
 
-	t.Run("outputs JSON format", func(t *testing.T) {
+	t.Run("outputs JSON format with specified fields", func(t *testing.T) {
 		f, stdout, _ := setupTest(t)
 
 		httpmock.RegisterResponder("POST", "https://api.test.com/jmap/api",
@@ -162,7 +162,7 @@ func TestInboxCommand(t *testing.T) {
 			})
 
 		cmd := NewCmdInbox(f)
-		cmd.SetArgs([]string{"--json"})
+		cmd.SetArgs([]string{"--json", "id,subject,unread"})
 		cmd.SetOut(stdout)
 		cmd.SetErr(&bytes.Buffer{})
 
@@ -171,7 +171,7 @@ func TestInboxCommand(t *testing.T) {
 		require.NoError(t, err)
 		output := stdout.String()
 
-		// Verify it's valid JSON
+		// Verify it's valid JSON with only requested fields
 		var result []map[string]interface{}
 		err = json.Unmarshal([]byte(output), &result)
 		require.NoError(t, err)
@@ -179,6 +179,8 @@ func TestInboxCommand(t *testing.T) {
 		assert.Equal(t, "email-1", result[0]["id"])
 		assert.Equal(t, "Test Email", result[0]["subject"])
 		assert.Equal(t, true, result[0]["isUnread"])
+		// Should only have 3 fields
+		assert.Len(t, result[0], 3)
 	})
 
 	t.Run("shows empty message when no emails", func(t *testing.T) {
@@ -276,23 +278,11 @@ func TestInboxCommand(t *testing.T) {
 		assert.Equal(t, 5, capturedLimit)
 	})
 
-	t.Run("validates custom fields", func(t *testing.T) {
+	t.Run("validates JSON fields", func(t *testing.T) {
 		f, _, stderr := setupTest(t)
 
-		// Only need mailbox response, validation happens before email fetch
-		httpmock.RegisterResponder("POST", "https://api.test.com/jmap/api",
-			httpmock.NewJsonResponderOrPanic(200, map[string]interface{}{
-				"methodResponses": [][]interface{}{
-					{"Mailbox/get", map[string]interface{}{
-						"list": []map[string]interface{}{
-							{"id": "inbox-1", "role": "inbox"},
-						},
-					}, "mailboxes"},
-				},
-			}))
-
 		cmd := NewCmdInbox(f)
-		cmd.SetArgs([]string{"--fields", "invalid_field"})
+		cmd.SetArgs([]string{"--json", "invalid_field"})
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(stderr)
 
@@ -305,17 +295,15 @@ func TestInboxCommand(t *testing.T) {
 
 func TestInboxCommand_FlagParsing(t *testing.T) {
 	tests := []struct {
-		name       string
-		args       []string
-		wantLimit  int
-		wantJSON   bool
-		wantFields string
+		name           string
+		args           []string
+		wantLimit      int
+		wantJSONFields []string
 	}{
 		{
 			name:      "defaults",
 			args:      []string{},
 			wantLimit: 20,
-			wantJSON:  false,
 		},
 		{
 			name:      "custom limit",
@@ -323,14 +311,14 @@ func TestInboxCommand_FlagParsing(t *testing.T) {
 			wantLimit: 10,
 		},
 		{
-			name:     "json output",
-			args:     []string{"--json"},
-			wantJSON: true,
+			name:           "json with fields",
+			args:           []string{"--json", "id,subject"},
+			wantJSONFields: []string{"id", "subject"},
 		},
 		{
-			name:       "custom fields",
-			args:       []string{"--fields", "id,subject"},
-			wantFields: "id,subject",
+			name:           "json with multiple fields",
+			args:           []string{"--json", "id,subject,from,date"},
+			wantJSONFields: []string{"id", "subject", "from", "date"},
 		},
 	}
 
@@ -349,12 +337,9 @@ func TestInboxCommand_FlagParsing(t *testing.T) {
 				assert.Equal(t, tt.wantLimit, limit)
 			}
 
-			jsonFlag, _ := cmd.Flags().GetBool("json")
-			assert.Equal(t, tt.wantJSON, jsonFlag)
-
-			if tt.wantFields != "" {
-				fields, _ := cmd.Flags().GetString("fields")
-				assert.Equal(t, tt.wantFields, fields)
+			if tt.wantJSONFields != nil {
+				jsonFields, _ := cmd.Flags().GetStringSlice("json")
+				assert.Equal(t, tt.wantJSONFields, jsonFields)
 			}
 		})
 	}

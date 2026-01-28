@@ -9,7 +9,7 @@ import (
 	"github.com/marckohlbrugge/fastmail-cli/internal/jmap"
 )
 
-// DefaultEmailFields are the fields shown when no --fields flag is provided.
+// DefaultEmailFields are the fields shown in human output.
 var DefaultEmailFields = []string{"id", "date", "from", "subject"}
 
 // AvailableEmailFields lists all fields that can be displayed.
