@@ -214,6 +214,13 @@ fm completion bash > /etc/bash_completion.d/fm
 fm completion fish > ~/.config/fish/completions/fm.fish
 ```
 
+## Development
+
+```bash
+make build   # Build binary
+make test    # Run tests
+```
+
 ## Contributing
 
 I'm not accepting pull requests at this time—reviewing external code for security in a tool that handles email requires more time than I can commit to. Feel free to [open an issue](https://github.com/marckohlbrugge/fastmail-cli/issues) for bug reports or feature requests.
