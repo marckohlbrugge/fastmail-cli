@@ -15,6 +15,7 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm64
@@ -29,6 +30,8 @@ archives:
         formats: [zip]
       - goos: linux
         formats: [tar.gz]
+      - goos: windows
+        formats: [zip]
     files:
       - LICENSE*
       - README*
