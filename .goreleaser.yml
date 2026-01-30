@@ -52,6 +52,7 @@ brews:
   - repository:
       owner: marckohlbrugge
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: https://github.com/marckohlbrugge/fastmail-cli
     description: Command-line interface for Fastmail
