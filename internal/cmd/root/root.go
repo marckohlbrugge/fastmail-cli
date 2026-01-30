@@ -12,6 +12,8 @@ import (
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/email"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/folder"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/folders"
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/identities"
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/identity"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/inbox"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/search"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/version"
@@ -73,6 +75,10 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 		Title: "Folder commands",
 	})
 	cmd.AddGroup(&cobra.Group{
+		ID:    "identity",
+		Title: "Identity commands",
+	})
+	cmd.AddGroup(&cobra.Group{
 		ID:    "utility",
 		Title: "Utility commands",
 	})
@@ -84,6 +90,7 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 	cmd.AddCommand(inbox.NewCmdInbox(f))
 	cmd.AddCommand(search.NewCmdSearch(f))
 	cmd.AddCommand(folders.NewCmdFolders(f))
+	cmd.AddCommand(identities.NewCmdIdentities(f))
 
 	// Email subcommands
 	cmd.AddCommand(email.NewCmdEmail(f))
@@ -93,6 +100,9 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 
 	// Folder subcommands
 	cmd.AddCommand(folder.NewCmdFolder(f))
+
+	// Identity subcommands
+	cmd.AddCommand(identity.NewCmdIdentity(f))
 
 	// Utility commands
 	cmd.AddCommand(version.NewCmdVersion(f, Version))

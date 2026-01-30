@@ -18,7 +18,7 @@ User request: $ARGUMENTS
 
 **Always prefer creating drafts over sending emails.** Unless the user explicitly says "send this email", create a draft instead. This lets the user review before sending. If you're unsure whether to send or draft, ask.
 
-**Use the appropriate sender address.** When replying to a thread, check which address the original email was sent to and use `--from` to reply from the same address. This maintains consistency in the conversation.
+**Use the appropriate sender address.** When replying to a thread, check which address the original email was sent to and use `--from` to reply from the same address. This maintains consistency in the conversation. Use `fm identities` to see available sender addresses.
 
 **When triaging multiple emails**, use AskUserQuestion to let the user decide on each email interactively. Suggest options like:
 - Archive (recommended for newsletters, notifications)
@@ -134,6 +134,13 @@ fm folder create "Projects"
 
 # Rename a folder
 fm folder rename abc123 "New Name"
+```
+
+### Identities
+
+```bash
+# List available sender addresses
+fm identities
 ```
 
 ### Authentication
