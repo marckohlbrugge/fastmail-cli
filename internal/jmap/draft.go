@@ -3,6 +3,8 @@ package jmap
 import (
 	"encoding/json"
 	"fmt"
+	"html"
+	"strings"
 )
 
 // DraftEmail contains data for creating a draft.
@@ -71,7 +73,16 @@ func (c *Client) SaveDraft(draft DraftEmail) (string, error) {
 		emailObject["references"] = draft.References
 	}
 
-	if draft.HTMLBody != "" {
+	// Set up body - prefer both HTML and text if available
+	if draft.HTMLBody != "" && draft.TextBody != "" {
+		// Both HTML and plain text (best compatibility)
+		emailObject["htmlBody"] = []map[string]string{{"partId": "html", "type": "text/html"}}
+		emailObject["textBody"] = []map[string]string{{"partId": "text", "type": "text/plain"}}
+		emailObject["bodyValues"] = map[string]interface{}{
+			"html": map[string]string{"value": draft.HTMLBody},
+			"text": map[string]string{"value": draft.TextBody},
+		}
+	} else if draft.HTMLBody != "" {
 		emailObject["htmlBody"] = []map[string]string{{"partId": "html", "type": "text/html"}}
 		emailObject["bodyValues"] = map[string]interface{}{"html": map[string]string{"value": draft.HTMLBody}}
 	} else {
@@ -185,14 +196,141 @@ func (c *Client) CreateReplyDraft(emailID, body string, replyAll bool) (string, 
 		inReplyTo = original.MessageID[0]
 	}
 
+	// Get original body content
+	var originalTextBody, originalHTMLBody string
+	if original.BodyValues != nil {
+		for _, part := range original.TextBody {
+			if bv, ok := original.BodyValues[part.PartID]; ok {
+				originalTextBody = bv.Value
+				break
+			}
+		}
+		for _, part := range original.HTMLBody {
+			if bv, ok := original.BodyValues[part.PartID]; ok {
+				originalHTMLBody = bv.Value
+				break
+			}
+		}
+	}
+
+	// Build attribution line
+	fromStr := FormatAddresses(original.From)
+	dateStr := original.ReceivedAt.Format("Mon, Jan 2, 2006 at 3:04 PM")
+	attribution := fmt.Sprintf("On %s, %s wrote:", dateStr, fromStr)
+
+	// Build plain text reply with quoted original
+	textBody := body + "\n\n" + attribution + "\n" + quoteText(originalTextBody)
+
+	// Build HTML reply with quoted original
+	htmlBody := formatReplyHTML(body, attribution, originalHTMLBody, originalTextBody)
+
 	return c.SaveDraft(DraftEmail{
 		To:         to,
 		CC:         cc,
 		Subject:    subject,
-		TextBody:   body,
+		TextBody:   textBody,
+		HTMLBody:   htmlBody,
 		InReplyTo:  inReplyTo,
 		References: references,
 	})
+}
+
+// quoteText prefixes each line with "> " for plain text quoting.
+func quoteText(text string) string {
+	if text == "" {
+		return ""
+	}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = "> " + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+// formatReplyHTML creates an HTML reply body with blockquoted original.
+func formatReplyHTML(replyText, attribution, originalHTML, originalText string) string {
+	// Convert reply text to HTML divs (Fastmail style)
+	replyHTML := textToHTMLDivs(replyText)
+
+	// Use original HTML if available, otherwise convert text to HTML divs
+	// Strip outer document tags from HTML to avoid style conflicts
+	var quotedContent string
+	if originalHTML != "" {
+		quotedContent = extractHTMLBody(originalHTML)
+	} else if originalText != "" {
+		quotedContent = textToHTMLDivs(originalText)
+	}
+
+	// Match Fastmail's exact format with #qt styles
+	return fmt.Sprintf(`<!DOCTYPE html><html><head><title></title></head><body>%s<div><br></div><div>%s</div><blockquote type="cite" id="qt">%s</blockquote><div><br></div></body></html>`,
+		replyHTML, html.EscapeString(attribution), quotedContent)
+}
+
+// extractHTMLBody extracts just the body content from an HTML document,
+// stripping DOCTYPE, html, head, and body tags to avoid style conflicts.
+func extractHTMLBody(htmlContent string) string {
+	content := htmlContent
+
+	// Remove DOCTYPE
+	if idx := strings.Index(strings.ToLower(content), "<!doctype"); idx != -1 {
+		if end := strings.Index(content[idx:], ">"); end != -1 {
+			content = content[:idx] + content[idx+end+1:]
+		}
+	}
+
+	// Remove <html> and </html>
+	content = removeTag(content, "html")
+
+	// Remove <head>...</head> entirely
+	if start := strings.Index(strings.ToLower(content), "<head"); start != -1 {
+		if end := strings.Index(strings.ToLower(content[start:]), "</head>"); end != -1 {
+			content = content[:start] + content[start+end+7:]
+		}
+	}
+
+	// Remove <body> and </body> but keep the content
+	content = removeTag(content, "body")
+
+	return strings.TrimSpace(content)
+}
+
+// removeTag removes opening and closing tags but keeps inner content.
+func removeTag(content, tagName string) string {
+	lower := strings.ToLower(content)
+
+	// Remove opening tag (may have attributes)
+	if start := strings.Index(lower, "<"+tagName); start != -1 {
+		if end := strings.Index(content[start:], ">"); end != -1 {
+			content = content[:start] + content[start+end+1:]
+			lower = strings.ToLower(content)
+		}
+	}
+
+	// Remove closing tag
+	closeTag := "</" + tagName + ">"
+	if idx := strings.Index(lower, closeTag); idx != -1 {
+		content = content[:idx] + content[idx+len(closeTag):]
+	}
+
+	return content
+}
+
+// textToHTMLDivs converts plain text to HTML with each line in a <div>.
+// Empty lines become <div><br></div> (Fastmail style).
+func textToHTMLDivs(text string) string {
+	if text == "" {
+		return ""
+	}
+	lines := strings.Split(text, "\n")
+	var result []string
+	for _, line := range lines {
+		if line == "" {
+			result = append(result, "<div><br></div>")
+		} else {
+			result = append(result, fmt.Sprintf("<div>%s</div>", html.EscapeString(line)))
+		}
+	}
+	return strings.Join(result, "")
 }
 
 // CreateForwardDraft creates a forward draft with the original message.
