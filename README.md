@@ -37,10 +37,10 @@ fm draft send M9876543210
 
 ## Installation
 
-### Homebrew
+### Homebrew (recommended)
 
 ```bash
-brew install marckohlbrugge/tap/fm --HEAD
+brew install marckohlbrugge/tap/fm
 ```
 
 ### From Source
@@ -58,7 +58,7 @@ Then move `fm` to somewhere in your PATH, or add the directory to your PATH.
 ### Homebrew
 
 ```bash
-brew upgrade marckohlbrugge/tap/fm
+brew update && brew upgrade fm
 ```
 
 ### From Source
@@ -235,6 +235,26 @@ fm completion fish > ~/.config/fish/completions/fm.fish
 ```bash
 make build   # Build binary
 make test    # Run tests
+```
+
+### Releasing
+
+To release a new version:
+
+```bash
+git tag v1.x.x
+git push origin v1.x.x
+```
+
+This triggers GitHub Actions to build binaries for macOS (Intel/ARM) and Linux (amd64/arm64) and create a GitHub release.
+
+Then update the Homebrew formula manually:
+
+```bash
+# Get checksums from the release
+gh release download v1.x.x --pattern 'checksums.txt' --output -
+
+# Update Formula/fm.rb in marckohlbrugge/homebrew-tap with new version and checksums
 ```
 
 ## Contributing
