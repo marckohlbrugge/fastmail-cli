@@ -108,7 +108,7 @@ When making meaningful changes, suggest creating a new release using semantic ve
 
 - **PATCH** (v1.0.x): Bug fixes, documentation updates, minor tweaks
 - **MINOR** (v1.x.0): New features, new commands, new flags (backwards compatible)
-- **MAJOR** (vX.0.0): Breaking changes (renamed commands, changed flag behavior, removed features)
+- **MAJOR** (vX.0.0): Breaking changes (renamed commands, changed flag behavior, removed features) - **always ask user for confirmation**
 
 ```bash
 git tag v1.x.x
