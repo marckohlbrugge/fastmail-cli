@@ -260,7 +260,7 @@ func TestSearchCommand(t *testing.T) {
 		assert.Equal(t, "NOT", capturedFilter["operator"])
 	})
 
-	t.Run("outputs JSON format", func(t *testing.T) {
+	t.Run("outputs JSON format with specified fields", func(t *testing.T) {
 		f, stdout, _ := setupTest(t)
 
 		httpmock.RegisterResponder("POST", "https://api.test.com/jmap/api",
@@ -276,7 +276,7 @@ func TestSearchCommand(t *testing.T) {
 			}))
 
 		cmd := NewCmdSearch(f)
-		cmd.SetArgs([]string{"test", "--json"})
+		cmd.SetArgs([]string{"test", "--json", "id,subject"})
 		cmd.SetOut(stdout)
 		cmd.SetErr(&bytes.Buffer{})
 
@@ -290,6 +290,9 @@ func TestSearchCommand(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, "email-1", result[0]["id"])
 		assert.Equal(t, "Test Email", result[0]["subject"])
+		// Should not include fields that weren't requested
+		_, hasThreadId := result[0]["threadId"]
+		assert.False(t, hasThreadId)
 	})
 
 	t.Run("shows empty message when no results with query", func(t *testing.T) {
@@ -419,16 +422,15 @@ func TestSearchCommand(t *testing.T) {
 
 func TestSearchCommand_FlagParsing(t *testing.T) {
 	tests := []struct {
-		name      string
-		args      []string
-		wantLimit int
-		wantJSON  bool
+		name       string
+		args       []string
+		wantLimit  int
+		wantFields []string
 	}{
 		{
 			name:      "defaults",
 			args:      []string{"query"},
 			wantLimit: 50,
-			wantJSON:  false,
 		},
 		{
 			name:      "custom limit",
@@ -436,9 +438,9 @@ func TestSearchCommand_FlagParsing(t *testing.T) {
 			wantLimit: 100,
 		},
 		{
-			name:     "json flag",
-			args:     []string{"query", "--json"},
-			wantJSON: true,
+			name:       "json flag with fields",
+			args:       []string{"query", "--json", "id,subject,from"},
+			wantFields: []string{"id", "subject", "from"},
 		},
 		{
 			name:      "no query with folder",
@@ -461,9 +463,9 @@ func TestSearchCommand_FlagParsing(t *testing.T) {
 				assert.Equal(t, tt.wantLimit, limit)
 			}
 
-			if tt.wantJSON {
-				jsonFlag, _ := cmd.Flags().GetBool("json")
-				assert.True(t, jsonFlag)
+			if tt.wantFields != nil {
+				jsonFields, _ := cmd.Flags().GetStringSlice("json")
+				assert.Equal(t, tt.wantFields, jsonFields)
 			}
 		})
 	}

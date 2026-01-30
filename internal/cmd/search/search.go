@@ -11,10 +11,9 @@ import (
 )
 
 type searchOptions struct {
-	Folder string
-	Limit  int
-	JSON   bool
-	Fields string
+	Folder     string
+	Limit      int
+	JSONFields []string
 }
 
 
@@ -73,8 +72,11 @@ Boolean operators (case-insensitive):
   # Search within a specific folder
   fm search "from:newsletter" --folder inbox
 
-  # Output as JSON
-  fm search "from:alice" --json`,
+  # Output as JSON with specific fields
+  fm search "from:alice" --json id,subject,from
+
+  # Output all available JSON fields
+  fm search "from:alice" --json id,threadId,subject,from,to,cc,date,preview,unread,attachment`,
 		GroupID: "core",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,8 +90,7 @@ Boolean operators (case-insensitive):
 
 	cmd.Flags().StringVar(&opts.Folder, "folder", "", "Restrict search to folder ID or name")
 	cmd.Flags().IntVar(&opts.Limit, "limit", 50, "Maximum results (max 500)")
-	cmd.Flags().BoolVar(&opts.JSON, "json", false, "Output in JSON format")
-	cmd.Flags().StringVar(&opts.Fields, "fields", "", "Comma-separated list of fields to display (id,threadId,subject,from,to,cc,date,preview,unread,attachment)")
+	cmd.Flags().StringSliceVar(&opts.JSONFields, "json", nil, "Output JSON with specified `fields` (id,threadId,subject,from,to,cc,date,preview,unread,attachment)")
 
 	return cmd
 }
@@ -100,10 +101,11 @@ func runSearch(f *cmdutil.Factory, opts *searchOptions, query string) error {
 		return err
 	}
 
-	// Parse and validate fields
-	fields := cmdutil.ParseFields(opts.Fields)
-	if err := cmdutil.ValidateFields(fields); err != nil {
-		return err
+	// Validate JSON fields if provided
+	if opts.JSONFields != nil {
+		if err := cmdutil.ValidateFields(opts.JSONFields); err != nil {
+			return err
+		}
 	}
 
 	filters := jmap.SearchFilters{
@@ -125,11 +127,11 @@ func runSearch(f *cmdutil.Factory, opts *searchOptions, query string) error {
 		return err
 	}
 
-	if opts.JSON {
-		return outputJSON(f, emails)
+	if opts.JSONFields != nil {
+		return outputJSON(f, emails, opts.JSONFields)
 	}
 
-	return outputHuman(f, emails, query, fields)
+	return outputHuman(f, emails, query)
 }
 
 func resolveMailbox(client *jmap.Client, folderRef string) (*jmap.Mailbox, error) {
@@ -149,34 +151,72 @@ func resolveMailbox(client *jmap.Client, folderRef string) (*jmap.Mailbox, error
 	return client.GetMailboxByRole(folderRef)
 }
 
-func outputJSON(f *cmdutil.Factory, emails []jmap.Email) error {
-	type jsonEmail struct {
-		ID            string              `json:"id"`
-		ThreadID      string              `json:"threadId"`
-		Subject       string              `json:"subject"`
-		From          []jmap.EmailAddress `json:"from"`
-		To            []jmap.EmailAddress `json:"to"`
-		CC            []jmap.EmailAddress `json:"cc,omitempty"`
-		ReceivedAt    time.Time           `json:"receivedAt"`
-		IsUnread      bool                `json:"isUnread"`
-		HasAttachment bool                `json:"hasAttachment"`
-		Preview       string              `json:"preview"`
+func outputJSON(f *cmdutil.Factory, emails []jmap.Email, fields []string) error {
+	// If no fields specified, output all fields
+	if len(fields) == 0 {
+		type jsonEmail struct {
+			ID            string              `json:"id"`
+			ThreadID      string              `json:"threadId"`
+			Subject       string              `json:"subject"`
+			From          []jmap.EmailAddress `json:"from"`
+			To            []jmap.EmailAddress `json:"to"`
+			CC            []jmap.EmailAddress `json:"cc,omitempty"`
+			ReceivedAt    time.Time           `json:"receivedAt"`
+			IsUnread      bool                `json:"isUnread"`
+			HasAttachment bool                `json:"hasAttachment"`
+			Preview       string              `json:"preview"`
+		}
+
+		output := make([]jsonEmail, len(emails))
+		for i, e := range emails {
+			output[i] = jsonEmail{
+				ID:            e.ID,
+				ThreadID:      e.ThreadID,
+				Subject:       e.Subject,
+				From:          e.From,
+				To:            e.To,
+				CC:            e.CC,
+				ReceivedAt:    e.ReceivedAt,
+				IsUnread:      e.IsUnread(),
+				HasAttachment: e.HasAttachment,
+				Preview:       e.Preview,
+			}
+		}
+
+		encoder := json.NewEncoder(f.IOStreams.Out)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(output)
 	}
 
-	output := make([]jsonEmail, len(emails))
+	// Output only specified fields
+	output := make([]map[string]interface{}, len(emails))
 	for i, e := range emails {
-		output[i] = jsonEmail{
-			ID:            e.ID,
-			ThreadID:      e.ThreadID,
-			Subject:       e.Subject,
-			From:          e.From,
-			To:            e.To,
-			CC:            e.CC,
-			ReceivedAt:    e.ReceivedAt,
-			IsUnread:      e.IsUnread(),
-			HasAttachment: e.HasAttachment,
-			Preview:       e.Preview,
+		row := make(map[string]interface{})
+		for _, field := range fields {
+			switch field {
+			case "id":
+				row["id"] = e.ID
+			case "threadId":
+				row["threadId"] = e.ThreadID
+			case "subject":
+				row["subject"] = e.Subject
+			case "from":
+				row["from"] = e.From
+			case "to":
+				row["to"] = e.To
+			case "cc":
+				row["cc"] = e.CC
+			case "date":
+				row["receivedAt"] = e.ReceivedAt
+			case "preview":
+				row["preview"] = e.Preview
+			case "unread":
+				row["isUnread"] = e.IsUnread()
+			case "attachment":
+				row["hasAttachment"] = e.HasAttachment
+			}
 		}
+		output[i] = row
 	}
 
 	encoder := json.NewEncoder(f.IOStreams.Out)
@@ -184,7 +224,7 @@ func outputJSON(f *cmdutil.Factory, emails []jmap.Email) error {
 	return encoder.Encode(output)
 }
 
-func outputHuman(f *cmdutil.Factory, emails []jmap.Email, query string, fields []string) error {
+func outputHuman(f *cmdutil.Factory, emails []jmap.Email, query string) error {
 	out := f.IOStreams.Out
 
 	if len(emails) == 0 {
@@ -196,7 +236,7 @@ func outputHuman(f *cmdutil.Factory, emails []jmap.Email, query string, fields [
 		return nil
 	}
 
-	cmdutil.PrintEmailList(out, emails, fields)
+	cmdutil.PrintEmailList(out, emails, cmdutil.DefaultEmailFields)
 
 	fmt.Fprintf(out, "\n%d results\n", len(emails))
 	return nil
