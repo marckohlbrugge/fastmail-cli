@@ -181,6 +181,18 @@ fm draft reply M123 --body "Sounds good, thanks!"
 fm search "has:attachment from:team"
 ```
 
+## Linking to Emails
+
+To link the user to a specific email in the Fastmail web UI, use:
+
+```
+https://app.fastmail.com/mail/Inbox/{emailId}
+```
+
+For example: `https://app.fastmail.com/mail/Inbox/Str1FmFgK8Vw`
+
+The folder name in the URL (`Inbox`) doesn't matter - the email will display regardless of which folder it's actually in.
+
 ## Environment Variables
 
 - `FASTMAIL_TOKEN` - API token (overrides stored credentials)
