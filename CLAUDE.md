@@ -102,6 +102,17 @@ go build -o fm ./cmd/fm
 13. Homebrew formula
 14. Error handling and edge cases
 
+## Releasing
+
+When making meaningful changes (new features, bug fixes, improvements), suggest creating a new release:
+
+```bash
+git tag v1.x.x
+git push origin v1.x.x
+```
+
+This triggers GitHub Actions to build binaries and update the Homebrew tap.
+
 ## Reference
 
 The original TypeScript implementation is in `node/src/`:
