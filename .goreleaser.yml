@@ -1,0 +1,58 @@
+version: 2
+
+project_name: fm
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fm
+    binary: fm
+    main: ./cmd/fm
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/marckohlbrugge/fastmail-cli/internal/cmd/root.Version={{.Version}}
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: darwin
+        formats: [zip]
+      - goos: linux
+        formats: [tar.gz]
+    files:
+      - LICENSE*
+      - README*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: marckohlbrugge
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/marckohlbrugge/fastmail-cli
+    description: Command-line interface for Fastmail
+    license: MIT
+    install: |
+      bin.install "fm"
+    test: |
+      system "#{bin}/fm", "version"
