@@ -138,11 +138,18 @@ Example JSON output:
 
 ## Claude Code Integration
 
-If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add the included skill to let Claude manage your email:
+If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), you can add the included skill to let Claude manage your email.
 
+**If installed via Homebrew:**
 ```bash
-mkdir -p ~/.claude/skills
-cp claude-code/SKILL.md ~/.claude/skills/fastmail.md
+mkdir -p ~/.claude/commands
+ln -sf $(brew --prefix)/share/fm/fastmail.md ~/.claude/commands/fastmail.md
+```
+
+**If installed manually:**
+```bash
+mkdir -p ~/.claude/commands
+ln -sf /path/to/fastmail-cli/skills/fastmail.md ~/.claude/commands/fastmail.md
 ```
 
 Then ask Claude things like:
@@ -150,7 +157,7 @@ Then ask Claude things like:
 - "Search for emails from Alice about the project"
 - "Draft a reply to the last email from Bob"
 
-See [claude-code/SKILL.md](claude-code/SKILL.md) for the full command reference.
+See [skills/fastmail.md](skills/fastmail.md) for the full command reference.
 
 ## Authentication
 

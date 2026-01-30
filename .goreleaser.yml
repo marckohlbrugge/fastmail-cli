@@ -35,6 +35,7 @@ archives:
     files:
       - LICENSE*
       - README*
+      - skills/fastmail.md
 
 checksum:
   name_template: "checksums.txt"
@@ -57,5 +58,10 @@ brews:
     license: MIT
     install: |
       bin.install "fm"
+      (share/"fm").install "skills/fastmail.md"
     test: |
       system "#{bin}/fm", "version"
+    caveats: |
+      To use fm with Claude Code, create a symlink to the skill file:
+        mkdir -p ~/.claude/commands
+        ln -sf #{share}/fm/fastmail.md ~/.claude/commands/fastmail.md

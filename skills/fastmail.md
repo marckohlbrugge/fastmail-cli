@@ -42,13 +42,21 @@ What would you like to do?
 ```bash
 # List recent inbox emails
 fm inbox
+fm inbox --limit 10
+
+# JSON output with specific fields
+fm inbox --json id,subject,from
 
 # Search emails (returns up to 50 by default)
 fm search "query"
 fm search "query" --limit 100
 fm search "query" --folder inbox
-fm search "query" --json
+
+# Search with JSON output
+fm search "query" --json id,subject,from,date
 ```
+
+**Available JSON fields:** `id`, `threadId`, `subject`, `from`, `to`, `cc`, `date`, `preview`, `unread`, `attachment`
 
 **Search operators:**
 - `from:alice` - Emails from alice
@@ -56,6 +64,11 @@ fm search "query" --json
 - `subject:hello` - Subject contains hello
 - `has:attachment` - Has attachments
 - `is:unread` - Unread emails only
+- `is:flagged` - Flagged/starred emails
+- `before:YYYY-MM-DD` - Emails before date
+- `after:YYYY-MM-DD` - Emails after date
+
+**Boolean operators:** `AND`, `OR`, `NOT`, `()` for grouping
 
 ### Reading Emails
 
