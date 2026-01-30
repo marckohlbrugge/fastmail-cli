@@ -100,6 +100,9 @@ fm email delete M1234567890
 fm draft new --to bob@example.com --subject "Hello"
 fm draft new --to bob@example.com --subject "Hello" --body "Message here"
 
+# Specify sender (if user has multiple identities)
+fm draft new --from other@example.com --to bob@example.com --subject "Hello"
+
 # Reply to an email
 fm draft reply M1234567890
 fm draft reply M1234567890 --body "Thanks for the update!"
