@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando/go-keyring"
 )
 
 func TestNewTokenSource(t *testing.T) {
@@ -50,13 +51,13 @@ func TestGetToken(t *testing.T) {
 	})
 
 	t.Run("returns error when no token available", func(t *testing.T) {
+		// Mock keyring to ensure no token is found
+		keyring.MockInit()
 		t.Setenv("FASTMAIL_TOKEN", "")
 
 		ts := NewTokenSource()
 		_, err := ts.GetToken()
 
-		// In CI/test environment, keyring likely fails, so we expect an error
-		// The error message should guide the user
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not authenticated")
 		assert.Contains(t, err.Error(), "fm auth login")
@@ -73,11 +74,12 @@ func TestIsAuthenticated(t *testing.T) {
 	})
 
 	t.Run("false when no token", func(t *testing.T) {
+		// Mock keyring to ensure no token is found
+		keyring.MockInit()
 		t.Setenv("FASTMAIL_TOKEN", "")
 
 		ts := NewTokenSource()
 
-		// In test environment without keyring, should be false
 		assert.False(t, ts.IsAuthenticated())
 	})
 }

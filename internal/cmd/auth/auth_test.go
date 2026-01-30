@@ -2,7 +2,6 @@ package auth
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
@@ -10,6 +9,7 @@ import (
 	"github.com/marckohlbrugge/fastmail-cli/internal/iostreams"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando/go-keyring"
 )
 
 func setupTest(t *testing.T) (*cmdutil.Factory, *bytes.Buffer, *bytes.Buffer, *bytes.Buffer) {
@@ -38,7 +38,10 @@ func setupTest(t *testing.T) (*cmdutil.Factory, *bytes.Buffer, *bytes.Buffer, *b
 // Login command tests
 
 func TestLoginCommand(t *testing.T) {
-	t.Run("validates token with API", func(t *testing.T) {
+	t.Run("validates token with API and stores in keyring", func(t *testing.T) {
+		// Mock the keyring to avoid touching real keychain
+		keyring.MockInit()
+
 		f, in, out, _ := setupTest(t)
 
 		httpmock.RegisterResponder("GET", "https://api.fastmail.com/jmap/session",
@@ -59,11 +62,13 @@ func TestLoginCommand(t *testing.T) {
 
 		err := cmd.Execute()
 
-		// Will fail on keyring storage in test environment, but validates the token
-		// The error should be about keyring, not about auth
-		if err != nil {
-			assert.Contains(t, err.Error(), "keychain")
-		}
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), "Logged in")
+
+		// Verify token was stored in mock keyring
+		token, err := keyring.Get("fm-cli", "fastmail-token")
+		require.NoError(t, err)
+		assert.Equal(t, "fmu1-test-token-12345678", token)
 	})
 
 	t.Run("rejects empty token", func(t *testing.T) {
@@ -201,6 +206,9 @@ func TestStatusCommand(t *testing.T) {
 
 func TestLogoutCommand(t *testing.T) {
 	t.Run("handles not logged in gracefully", func(t *testing.T) {
+		// Mock the keyring to avoid touching real keychain
+		keyring.MockInit()
+
 		f, _, out, _ := setupTest(t)
 
 		cmd := NewCmdLogout(f)
@@ -213,8 +221,26 @@ func TestLogoutCommand(t *testing.T) {
 		// Should not error, just say not logged in
 		require.NoError(t, err)
 		output := out.String()
-		// Either "Not logged in" or "Logged out" depending on keyring state
-		assert.True(t, strings.Contains(output, "Not logged in") || strings.Contains(output, "Logged out"))
+		assert.Contains(t, output, "Not logged in")
+	})
+
+	t.Run("logs out when token exists", func(t *testing.T) {
+		// Mock the keyring and store a token
+		keyring.MockInit()
+		_ = keyring.Set("fm-cli", "fastmail-token", "test-token")
+
+		f, _, out, _ := setupTest(t)
+
+		cmd := NewCmdLogout(f)
+		cmd.SetArgs([]string{})
+		cmd.SetOut(out)
+		cmd.SetErr(&bytes.Buffer{})
+
+		err := cmd.Execute()
+
+		require.NoError(t, err)
+		output := out.String()
+		assert.Contains(t, output, "Logged out")
 	})
 
 	t.Run("accepts no arguments", func(t *testing.T) {
