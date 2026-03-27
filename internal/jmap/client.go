@@ -24,11 +24,12 @@ type Client struct {
 
 // Session contains JMAP session information.
 type Session struct {
-	APIURL      string                 `json:"apiUrl"`
-	DownloadURL string                 `json:"downloadUrl"`
-	UploadURL   string                 `json:"uploadUrl"`
-	AccountID   string                 // First account ID
-	Accounts    map[string]interface{} `json:"accounts"`
+	APIURL          string                 `json:"apiUrl"`
+	DownloadURL     string                 `json:"downloadUrl"`
+	UploadURL       string                 `json:"uploadUrl"`
+	AccountID       string                 // Primary mail account ID
+	Accounts        map[string]interface{} `json:"accounts"`
+	PrimaryAccounts map[string]string      `json:"primaryAccounts"`
 }
 
 // Request is a JMAP request.
@@ -91,10 +92,16 @@ func (c *Client) GetSession() (*Session, error) {
 		return nil, fmt.Errorf("failed to decode session: %w", err)
 	}
 
-	// Extract first account ID
-	for id := range session.Accounts {
+	// Use primaryAccounts to find the correct mail account (RFC 8620).
+	// On family/team plans, the session may contain multiple accounts.
+	// Falling back to first account only if primaryAccounts is missing.
+	if id, ok := session.PrimaryAccounts[MailCapability]; ok && id != "" {
 		session.AccountID = id
-		break
+	} else {
+		for id := range session.Accounts {
+			session.AccountID = id
+			break
+		}
 	}
 
 	c.session = &session
