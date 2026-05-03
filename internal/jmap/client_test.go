@@ -58,6 +58,36 @@ func TestClient_GetSession(t *testing.T) {
 	assert.Equal(t, "account-123", session.AccountID)
 }
 
+func TestClient_GetSession_UsesPrimaryMailAccount(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	client := newTestClient()
+
+	httpmock.RegisterResponder("GET", "https://api.test.com/jmap/session",
+		httpmock.NewJsonResponderOrPanic(200, map[string]interface{}{
+			"apiUrl":      "https://api.test.com/jmap/api",
+			"downloadUrl": "https://api.test.com/jmap/download",
+			"uploadUrl":   "https://api.test.com/jmap/upload",
+			"accounts": map[string]interface{}{
+				"account-owner": map[string]interface{}{
+					"name": "owner@example.com",
+				},
+				"account-member": map[string]interface{}{
+					"name": "member@example.com",
+				},
+			},
+			"primaryAccounts": map[string]interface{}{
+				MailCapability: "account-member",
+			},
+		}))
+
+	session, err := client.GetSession()
+
+	require.NoError(t, err)
+	assert.Equal(t, "account-member", session.AccountID)
+}
+
 func TestClient_GetSession_Cached(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
