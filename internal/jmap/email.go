@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 )
 
@@ -402,11 +403,23 @@ func (c *Client) DownloadBlob(blobID, name, contentType string) ([]byte, error) 
 	url = strings.ReplaceAll(url, "{name}", name)
 	url = strings.ReplaceAll(url, "{type}", contentType)
 
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.setAuthHeaders(req)
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("download failed: %s - %s", resp.Status, string(body))
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
