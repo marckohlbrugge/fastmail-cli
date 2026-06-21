@@ -3,6 +3,7 @@ package jmap
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // GetIdentities fetches all sender identities.
@@ -60,4 +61,36 @@ func (c *Client) GetDefaultIdentity() (*Identity, error) {
 	}
 
 	return &identities[0], nil
+}
+
+// GetIdentityByEmail finds the identity matching an email address.
+// Handles wildcard identities like "*@domain.com".
+func (c *Client) GetIdentityByEmail(email string) (*Identity, error) {
+	identities, err := c.GetIdentities()
+	if err != nil {
+		return nil, err
+	}
+
+	email = strings.ToLower(email)
+
+	// First pass: exact match
+	for _, id := range identities {
+		if strings.ToLower(id.Email) == email {
+			return &id, nil
+		}
+	}
+
+	// Second pass: wildcard match (*@domain.com)
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) == 2 {
+		domain := parts[1]
+		wildcard := "*@" + domain
+		for _, id := range identities {
+			if strings.ToLower(id.Email) == wildcard {
+				return &id, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no identity found for %s", email)
 }

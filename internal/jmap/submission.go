@@ -12,10 +12,28 @@ func (c *Client) SendEmail(draftID string) error {
 		return err
 	}
 
-	// Get identity for sending
-	identity, err := c.GetDefaultIdentity()
+	// Fetch the draft to get its From address
+	draft, err := c.GetEmailByID(draftID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fetch draft: %w", err)
+	}
+
+	// Get identity matching the draft's From address
+	var identity *Identity
+	if len(draft.From) > 0 && draft.From[0].Email != "" {
+		identity, err = c.GetIdentityByEmail(draft.From[0].Email)
+		if err != nil {
+			// Fall back to default if no match found
+			identity, err = c.GetDefaultIdentity()
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		identity, err = c.GetDefaultIdentity()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Get sent mailbox
