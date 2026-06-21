@@ -8,6 +8,7 @@ import (
 
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/auth"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/completion"
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/describe"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/draft"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/email"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/folder"
@@ -107,6 +108,7 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 	// Utility commands
 	cmd.AddCommand(version.NewCmdVersion(f, Version))
 	cmd.AddCommand(completion.NewCmdCompletion(f))
+	cmd.AddCommand(describe.NewCmdDescribe(f))
 
 	return cmd
 }
