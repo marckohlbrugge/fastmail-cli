@@ -384,6 +384,86 @@ func (c *Client) MarkRead(emailID string, read bool) error {
 	return c.checkSetError(resp, 0, emailID)
 }
 
+// SnoozeEmail snoozes an email until a specified time.
+func (c *Client) SnoozeEmail(emailID string, until string) error {
+	session, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+
+	// Get the snoozed mailbox
+	snoozed, err := c.GetMailboxByRole("snoozed")
+	if err != nil {
+		return fmt.Errorf("could not find Snoozed mailbox: %w", err)
+	}
+
+	// Move to snoozed mailbox and set snoozedUntil
+	request := &Request{
+		Using: []string{CoreCapability, MailCapability},
+		MethodCalls: [][]interface{}{
+			{
+				"Email/set",
+				map[string]interface{}{
+					"accountId": session.AccountID,
+					"update": map[string]interface{}{
+						emailID: map[string]interface{}{
+							"mailboxIds":   map[string]bool{snoozed.ID: true},
+							"snoozedUntil": until,
+						},
+					},
+				},
+				"snoozeEmail",
+			},
+		},
+	}
+
+	resp, err := c.MakeRequest(request)
+	if err != nil {
+		return err
+	}
+
+	return c.checkSetError(resp, 0, emailID)
+}
+
+// UnsnoozeEmail removes snooze from an email and moves it back to inbox.
+func (c *Client) UnsnoozeEmail(emailID string) error {
+	session, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+
+	inbox, err := c.GetMailboxByRole("inbox")
+	if err != nil {
+		return fmt.Errorf("could not find Inbox mailbox: %w", err)
+	}
+
+	request := &Request{
+		Using: []string{CoreCapability, MailCapability},
+		MethodCalls: [][]interface{}{
+			{
+				"Email/set",
+				map[string]interface{}{
+					"accountId": session.AccountID,
+					"update": map[string]interface{}{
+						emailID: map[string]interface{}{
+							"mailboxIds":   map[string]bool{inbox.ID: true},
+							"snoozedUntil": nil,
+						},
+					},
+				},
+				"unsnoozeEmail",
+			},
+		},
+	}
+
+	resp, err := c.MakeRequest(request)
+	if err != nil {
+		return err
+	}
+
+	return c.checkSetError(resp, 0, emailID)
+}
+
 // DownloadBlob downloads an attachment blob.
 func (c *Client) DownloadBlob(blobID, name, contentType string) ([]byte, error) {
 	session, err := c.GetSession()
