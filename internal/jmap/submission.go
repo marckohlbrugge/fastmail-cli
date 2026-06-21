@@ -42,6 +42,12 @@ func (c *Client) SendEmail(draftID string) error {
 		return fmt.Errorf("could not find Sent mailbox: %w", err)
 	}
 
+	// Get drafts mailbox to remove email from it
+	draftsMailbox, err := c.GetMailboxByRole("drafts")
+	if err != nil {
+		return fmt.Errorf("could not find Drafts mailbox: %w", err)
+	}
+
 	// Create EmailSubmission and update the email's mailbox in one request
 	request := &Request{
 		Using: []string{CoreCapability, MailCapability, SubmissionCapability},
@@ -58,8 +64,9 @@ func (c *Client) SendEmail(draftID string) error {
 					},
 					"onSuccessUpdateEmail": map[string]interface{}{
 						"#submission": map[string]interface{}{
-							"mailboxIds/" + sentMailbox.ID: true,
-							"keywords/$draft":              nil,
+							"mailboxIds/" + sentMailbox.ID:   true,
+							"mailboxIds/" + draftsMailbox.ID: nil,
+							"keywords/$draft":                nil,
 						},
 					},
 				},
