@@ -14,6 +14,9 @@ const (
 	SessionPath    = "/jmap/session"
 )
 
+// Version is set at build time or by main.
+var Version = "dev"
+
 // Client is a JMAP client for Fastmail.
 type Client struct {
 	token      string
@@ -150,6 +153,7 @@ func (c *Client) MakeRequest(request *Request) (*Response, error) {
 func (c *Client) setAuthHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "fm/"+Version)
 }
 
 // AccountID returns the current account ID.
