@@ -353,9 +353,12 @@ func (c *Client) MarkRead(emailID string, read bool) error {
 		return err
 	}
 
-	keywords := map[string]bool{}
+	// Use patch syntax to toggle only $seen without affecting other keywords
+	var patch map[string]interface{}
 	if read {
-		keywords["$seen"] = true
+		patch = map[string]interface{}{"keywords/$seen": true}
+	} else {
+		patch = map[string]interface{}{"keywords/$seen": nil}
 	}
 
 	request := &Request{
@@ -366,9 +369,7 @@ func (c *Client) MarkRead(emailID string, read bool) error {
 				map[string]interface{}{
 					"accountId": session.AccountID,
 					"update": map[string]interface{}{
-						emailID: map[string]interface{}{
-							"keywords": keywords,
-						},
+						emailID: patch,
 					},
 				},
 				"markRead",
