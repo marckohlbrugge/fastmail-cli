@@ -3,8 +3,10 @@ package draft
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmdutil"
+	"github.com/marckohlbrugge/fastmail-cli/internal/jmap"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +14,7 @@ type replyOptions struct {
 	Body     string
 	BodyFile string
 	All      bool
+	Attach   []string
 }
 
 // NewCmdReply creates the draft reply command.
@@ -42,6 +45,7 @@ headers for proper conversation grouping.`,
 	cmd.Flags().StringVar(&opts.Body, "body", "", "Reply body text")
 	cmd.Flags().StringVar(&opts.BodyFile, "body-file", "", "Read body from file")
 	cmd.Flags().BoolVar(&opts.All, "all", false, "Reply to all recipients")
+	cmd.Flags().StringSliceVar(&opts.Attach, "attach", nil, "Files to attach (can be repeated)")
 
 	return cmd
 }
@@ -66,7 +70,27 @@ func runReply(f *cmdutil.Factory, opts *replyOptions, emailID string) error {
 		return err
 	}
 
-	draftID, err := client.CreateReplyDraft(emailID, body, opts.All)
+	// Upload attachments
+	var attachments []jmap.Attachment
+	for _, path := range opts.Attach {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("cannot read %s: %w", path, err)
+		}
+		filename := filepath.Base(path)
+		resp, err := client.UploadBlob(filename, "", data)
+		if err != nil {
+			return fmt.Errorf("cannot upload %s: %w", path, err)
+		}
+		attachments = append(attachments, jmap.Attachment{
+			BlobID: resp.BlobID,
+			Type:   resp.Type,
+			Name:   filename,
+			Size:   resp.Size,
+		})
+	}
+
+	draftID, err := client.CreateReplyDraft(emailID, body, opts.All, attachments)
 	if err != nil {
 		return err
 	}

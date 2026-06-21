@@ -3,6 +3,7 @@ package draft
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmdutil"
 	"github.com/marckohlbrugge/fastmail-cli/internal/jmap"
@@ -17,6 +18,7 @@ type newOptions struct {
 	Body     string
 	BodyFile string
 	From     string
+	Attach   []string
 }
 
 // NewCmdNew creates the draft new command.
@@ -54,6 +56,7 @@ in Fastmail or send it with 'fm draft send'.`,
 	cmd.Flags().StringVar(&opts.Body, "body", "", "Email body text")
 	cmd.Flags().StringVar(&opts.BodyFile, "body-file", "", "Read body from file")
 	cmd.Flags().StringVar(&opts.From, "from", "", "Sender email (default: primary identity)")
+	cmd.Flags().StringSliceVar(&opts.Attach, "attach", nil, "Files to attach (can be repeated)")
 
 	_ = cmd.MarkFlagRequired("to")
 	_ = cmd.MarkFlagRequired("subject")
@@ -84,13 +87,34 @@ func runNew(f *cmdutil.Factory, opts *newOptions) error {
 		return err
 	}
 
+	// Upload attachments
+	var attachments []jmap.Attachment
+	for _, path := range opts.Attach {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("cannot read %s: %w", path, err)
+		}
+		filename := filepath.Base(path)
+		resp, err := client.UploadBlob(filename, "", data)
+		if err != nil {
+			return fmt.Errorf("cannot upload %s: %w", path, err)
+		}
+		attachments = append(attachments, jmap.Attachment{
+			BlobID: resp.BlobID,
+			Type:   resp.Type,
+			Name:   filename,
+			Size:   resp.Size,
+		})
+	}
+
 	draftID, err := client.SaveDraft(jmap.DraftEmail{
-		To:       opts.To,
-		CC:       opts.CC,
-		BCC:      opts.BCC,
-		Subject:  opts.Subject,
-		TextBody: body,
-		From:     opts.From,
+		To:          opts.To,
+		CC:          opts.CC,
+		BCC:         opts.BCC,
+		Subject:     opts.Subject,
+		TextBody:    body,
+		From:        opts.From,
+		Attachments: attachments,
 	})
 	if err != nil {
 		return err
