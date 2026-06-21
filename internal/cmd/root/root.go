@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/attachment"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/auth"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/completion"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/draft"
@@ -94,6 +95,7 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 
 	// Email subcommands
 	cmd.AddCommand(email.NewCmdEmail(f))
+	cmd.AddCommand(attachment.NewCmdAttachment(f))
 
 	// Draft subcommands
 	cmd.AddCommand(draft.NewCmdDraft(f))
