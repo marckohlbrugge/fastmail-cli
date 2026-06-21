@@ -79,6 +79,19 @@ type Thread struct {
 	EmailIDs []string `json:"emailIds"`
 }
 
+// MaskedEmail represents a Fastmail masked email address.
+type MaskedEmail struct {
+	ID            string  `json:"id"`
+	Email         string  `json:"email"`
+	State         string  `json:"state"` // pending, enabled, disabled, deleted
+	ForDomain     string  `json:"forDomain,omitempty"`
+	Description   string  `json:"description,omitempty"`
+	URL           string  `json:"url,omitempty"`
+	LastMessageAt *string `json:"lastMessageAt,omitempty"`
+	CreatedAt     string  `json:"createdAt,omitempty"`
+	CreatedBy     string  `json:"createdBy,omitempty"`
+}
+
 // IsUnread returns true if the email hasn't been read.
 func (e *Email) IsUnread() bool {
 	return !e.Keywords["$seen"]

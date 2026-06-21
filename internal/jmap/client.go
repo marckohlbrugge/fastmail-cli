@@ -167,3 +167,8 @@ var (
 	MailCapability       = "urn:ietf:params:jmap:mail"
 	SubmissionCapability = "urn:ietf:params:jmap:submission"
 )
+
+// Fastmail extension capabilities
+var (
+	MaskedEmailCapability = "https://www.fastmail.com/dev/maskedemail"
+)
