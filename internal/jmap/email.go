@@ -384,6 +384,45 @@ func (c *Client) MarkRead(emailID string, read bool) error {
 	return c.checkSetError(resp, 0, emailID)
 }
 
+// SetFlagged stars or unstars an email.
+func (c *Client) SetFlagged(emailID string, flagged bool) error {
+	session, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+
+	// Use patch syntax to toggle only $flagged without affecting other keywords
+	var patch map[string]interface{}
+	if flagged {
+		patch = map[string]interface{}{"keywords/$flagged": true}
+	} else {
+		patch = map[string]interface{}{"keywords/$flagged": nil}
+	}
+
+	request := &Request{
+		Using: []string{CoreCapability, MailCapability},
+		MethodCalls: [][]interface{}{
+			{
+				"Email/set",
+				map[string]interface{}{
+					"accountId": session.AccountID,
+					"update": map[string]interface{}{
+						emailID: patch,
+					},
+				},
+				"setFlagged",
+			},
+		},
+	}
+
+	resp, err := c.MakeRequest(request)
+	if err != nil {
+		return err
+	}
+
+	return c.checkSetError(resp, 0, emailID)
+}
+
 // DownloadBlob downloads an attachment blob.
 func (c *Client) DownloadBlob(blobID, name, contentType string) ([]byte, error) {
 	session, err := c.GetSession()
