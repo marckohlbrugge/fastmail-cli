@@ -384,6 +384,58 @@ func (c *Client) MarkRead(emailID string, read bool) error {
 	return c.checkSetError(resp, 0, emailID)
 }
 
+// SetKeyword adds or removes a keyword (label) on an email.
+func (c *Client) SetKeyword(emailID, keyword string, set bool) error {
+	session, err := c.GetSession()
+	if err != nil {
+		return err
+	}
+
+	var patch map[string]interface{}
+	if set {
+		patch = map[string]interface{}{"keywords/" + keyword: true}
+	} else {
+		patch = map[string]interface{}{"keywords/" + keyword: nil}
+	}
+
+	request := &Request{
+		Using: []string{CoreCapability, MailCapability},
+		MethodCalls: [][]interface{}{
+			{
+				"Email/set",
+				map[string]interface{}{
+					"accountId": session.AccountID,
+					"update": map[string]interface{}{
+						emailID: patch,
+					},
+				},
+				"setKeyword",
+			},
+		},
+	}
+
+	resp, err := c.MakeRequest(request)
+	if err != nil {
+		return err
+	}
+
+	return c.checkSetError(resp, 0, emailID)
+}
+
+// GetKeywords returns all keywords on an email.
+func (c *Client) GetKeywords(emailID string) ([]string, error) {
+	email, err := c.GetEmailByID(emailID)
+	if err != nil {
+		return nil, err
+	}
+
+	var keywords []string
+	for k := range email.Keywords {
+		keywords = append(keywords, k)
+	}
+	return keywords, nil
+}
+
 // DownloadBlob downloads an attachment blob.
 func (c *Client) DownloadBlob(blobID, name, contentType string) ([]byte, error) {
 	session, err := c.GetSession()
