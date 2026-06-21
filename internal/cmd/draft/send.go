@@ -13,6 +13,7 @@ import (
 type sendOptions struct {
 	Yes    bool
 	Unsafe bool
+	Hold   int // Seconds to hold before sending (undo window)
 }
 
 // NewCmdSend creates the draft send command.
@@ -27,6 +28,10 @@ func NewCmdSend(f *cmdutil.Factory) *cobra.Command {
 This is a critical action and requires confirmation. The email will be
 sent immediately and moved to your Sent folder.
 
+Use --hold to delay sending for a number of seconds. During this window,
+you can cancel with "fm email cancel <submission-id>". This enables
+undo-send functionality.
+
 In non-interactive mode (scripts, AI), this command is blocked unless
 --unsafe is specified. This prevents accidental sending by automated tools.`,
 		Example: `  # Send with confirmation prompt
@@ -34,6 +39,9 @@ In non-interactive mode (scripts, AI), this command is blocked unless
 
   # Send without confirmation
   fm draft send M1234567890 --yes
+
+  # Send with 20-second undo window
+  fm draft send M1234567890 --hold 20
 
   # Send in script/AI mode (requires explicit unsafe flag)
   fm draft send M1234567890 --unsafe --yes`,
@@ -45,6 +53,7 @@ In non-interactive mode (scripts, AI), this command is blocked unless
 
 	cmd.Flags().BoolVar(&opts.Yes, "yes", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&opts.Unsafe, "unsafe", false, "Allow in non-interactive mode")
+	cmd.Flags().IntVar(&opts.Hold, "hold", 0, "Seconds to hold before sending (undo window)")
 
 	return cmd
 }
@@ -93,11 +102,17 @@ func runSend(f *cmdutil.Factory, opts *sendOptions, draftID string) error {
 		}
 	}
 
-	if err := client.SendEmail(draftID); err != nil {
+	sendOpts := &jmap.SendOptions{HoldFor: opts.Hold}
+	submissionID, err := client.SendEmail(draftID, sendOpts)
+	if err != nil {
 		return err
 	}
 
-	fmt.Fprintln(f.IOStreams.Out, "Email sent successfully.")
+	if opts.Hold > 0 {
+		fmt.Fprintf(f.IOStreams.Out, "Email queued (hold %ds). Cancel: fm email cancel %s\n", opts.Hold, submissionID)
+	} else {
+		fmt.Fprintln(f.IOStreams.Out, "Email sent successfully.")
+	}
 	return nil
 }
 
