@@ -79,6 +79,17 @@ type Thread struct {
 	EmailIDs []string `json:"emailIds"`
 }
 
+// VacationResponse represents a JMAP vacation auto-responder.
+type VacationResponse struct {
+	ID        string  `json:"id"`
+	IsEnabled bool    `json:"isEnabled"`
+	FromDate  *string `json:"fromDate,omitempty"`
+	ToDate    *string `json:"toDate,omitempty"`
+	Subject   *string `json:"subject,omitempty"`
+	TextBody  *string `json:"textBody,omitempty"`
+	HTMLBody  *string `json:"htmlBody,omitempty"`
+}
+
 // IsUnread returns true if the email hasn't been read.
 func (e *Email) IsUnread() bool {
 	return !e.Keywords["$seen"]

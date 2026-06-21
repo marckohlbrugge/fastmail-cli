@@ -16,6 +16,7 @@ import (
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/identity"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/inbox"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/search"
+	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/vacation"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmd/version"
 	"github.com/marckohlbrugge/fastmail-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
@@ -91,6 +92,7 @@ func NewCmdRoot(f *cmdutil.Factory) *cobra.Command {
 	cmd.AddCommand(search.NewCmdSearch(f))
 	cmd.AddCommand(folders.NewCmdFolders(f))
 	cmd.AddCommand(identities.NewCmdIdentities(f))
+	cmd.AddCommand(vacation.NewCmdVacation(f))
 
 	// Email subcommands
 	cmd.AddCommand(email.NewCmdEmail(f))

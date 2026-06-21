@@ -163,7 +163,8 @@ func (c *Client) AccountID() (string, error) {
 
 // Standard JMAP capabilities
 var (
-	CoreCapability       = "urn:ietf:params:jmap:core"
-	MailCapability       = "urn:ietf:params:jmap:mail"
-	SubmissionCapability = "urn:ietf:params:jmap:submission"
+	CoreCapability             = "urn:ietf:params:jmap:core"
+	MailCapability             = "urn:ietf:params:jmap:mail"
+	SubmissionCapability       = "urn:ietf:params:jmap:submission"
+	VacationResponseCapability = "urn:ietf:params:jmap:vacationresponse"
 )
