@@ -17,6 +17,7 @@ type newOptions struct {
 	Body     string
 	BodyFile string
 	From     string
+	Attach   []string
 }
 
 // NewCmdNew creates the draft new command.
@@ -40,7 +41,10 @@ in Fastmail or send it with 'fm draft send'.`,
   fm draft new --to bob@example.com --subject "Report" --body-file report.txt
 
   # Create with CC
-  fm draft new --to bob@example.com --cc manager@example.com --subject "Update"`,
+  fm draft new --to bob@example.com --cc manager@example.com --subject "Update"
+
+  # Create with attachments
+  fm draft new --to bob@example.com --subject "Report" --attach report.pdf --attach data.csv`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runNew(f, opts)
@@ -54,6 +58,7 @@ in Fastmail or send it with 'fm draft send'.`,
 	cmd.Flags().StringVar(&opts.Body, "body", "", "Email body text")
 	cmd.Flags().StringVar(&opts.BodyFile, "body-file", "", "Read body from file")
 	cmd.Flags().StringVar(&opts.From, "from", "", "Sender email (default: primary identity)")
+	cmd.Flags().StringArrayVar(&opts.Attach, "attach", nil, "File to attach (can be repeated)")
 
 	_ = cmd.MarkFlagRequired("to")
 	_ = cmd.MarkFlagRequired("subject")
@@ -84,13 +89,19 @@ func runNew(f *cmdutil.Factory, opts *newOptions) error {
 		return err
 	}
 
+	attachments, err := uploadAttachments(client, opts.Attach)
+	if err != nil {
+		return err
+	}
+
 	draftID, err := client.SaveDraft(jmap.DraftEmail{
-		To:       opts.To,
-		CC:       opts.CC,
-		BCC:      opts.BCC,
-		Subject:  opts.Subject,
-		TextBody: body,
-		From:     opts.From,
+		To:          opts.To,
+		CC:          opts.CC,
+		BCC:         opts.BCC,
+		Subject:     opts.Subject,
+		TextBody:    body,
+		From:        opts.From,
+		Attachments: attachments,
 	})
 	if err != nil {
 		return err

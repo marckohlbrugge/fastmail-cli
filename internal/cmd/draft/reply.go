@@ -12,6 +12,7 @@ type replyOptions struct {
 	Body     string
 	BodyFile string
 	All      bool
+	Attach   []string
 }
 
 // NewCmdReply creates the draft reply command.
@@ -32,7 +33,10 @@ headers for proper conversation grouping.`,
   fm draft reply M1234567890 --body-file response.txt
 
   # Reply-all to include all recipients
-  fm draft reply M1234567890 --all --body "Thanks everyone!"`,
+  fm draft reply M1234567890 --all --body "Thanks everyone!"
+
+  # Reply with an attachment
+  fm draft reply M1234567890 --body "Here's the file" --attach report.pdf`,
 		Args: cmdutil.ExactArgs(1, "email ID required\n\nUsage: fm draft reply <email-id>"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runReply(f, opts, args[0])
@@ -42,6 +46,7 @@ headers for proper conversation grouping.`,
 	cmd.Flags().StringVar(&opts.Body, "body", "", "Reply body text")
 	cmd.Flags().StringVar(&opts.BodyFile, "body-file", "", "Read body from file")
 	cmd.Flags().BoolVar(&opts.All, "all", false, "Reply to all recipients")
+	cmd.Flags().StringArrayVar(&opts.Attach, "attach", nil, "File to attach (can be repeated)")
 
 	return cmd
 }
@@ -66,7 +71,12 @@ func runReply(f *cmdutil.Factory, opts *replyOptions, emailID string) error {
 		return err
 	}
 
-	draftID, err := client.CreateReplyDraft(emailID, body, opts.All)
+	attachments, err := uploadAttachments(client, opts.Attach)
+	if err != nil {
+		return err
+	}
+
+	draftID, err := client.CreateReplyDraft(emailID, body, opts.All, attachments)
 	if err != nil {
 		return err
 	}
