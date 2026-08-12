@@ -113,7 +113,7 @@ func (c *Client) GetEmailByID(emailID string) (*Email, error) {
 					"accountId":            session.AccountID,
 					"ids":                  []string{emailID},
 					"properties":           emailFullProperties,
-					"bodyProperties":       []string{"partId", "blobId", "type", "size"},
+					"bodyProperties":       []string{"partId", "blobId", "type", "size", "name", "disposition"},
 					"fetchTextBodyValues":  true,
 					"fetchHTMLBodyValues":  true,
 				},
