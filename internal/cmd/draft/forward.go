@@ -15,6 +15,7 @@ type forwardOptions struct {
 	Body     string
 	BodyFile string
 	From     string
+	Attach   []string
 }
 
 // NewCmdForward creates the draft forward command.
@@ -35,7 +36,10 @@ from the original email are also included.`,
   fm draft forward M1234567890 --to bob@example.com --body "FYI, see below"
 
   # Forward to multiple recipients
-  fm draft forward M1234567890 --to alice@example.com --to bob@example.com`,
+  fm draft forward M1234567890 --to alice@example.com --to bob@example.com
+
+  # Forward with an extra attachment
+  fm draft forward M1234567890 --to bob@example.com --attach notes.pdf`,
 		Args: cmdutil.ExactArgs(1, "email ID required\n\nUsage: fm draft forward <email-id> --to <recipient>"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runForward(f, opts, args[0])
@@ -47,6 +51,7 @@ from the original email are also included.`,
 	cmd.Flags().StringVar(&opts.Body, "body", "", "Introduction text before forwarded message")
 	cmd.Flags().StringVar(&opts.BodyFile, "body-file", "", "Read introduction from file")
 	cmd.Flags().StringVar(&opts.From, "from", "", "Sender email (default: primary identity)")
+	cmd.Flags().StringArrayVar(&opts.Attach, "attach", nil, "File to attach (can be repeated)")
 
 	_ = cmd.MarkFlagRequired("to")
 
@@ -73,12 +78,18 @@ func runForward(f *cmdutil.Factory, opts *forwardOptions, emailID string) error 
 		return err
 	}
 
+	attachments, err := uploadAttachments(client, opts.Attach)
+	if err != nil {
+		return err
+	}
+
 	draftID, err := client.CreateForwardDraft(jmap.ForwardOptions{
-		EmailID: emailID,
-		To:      opts.To,
-		CC:      opts.CC,
-		Body:    body,
-		From:    opts.From,
+		EmailID:     emailID,
+		To:          opts.To,
+		CC:          opts.CC,
+		Body:        body,
+		From:        opts.From,
+		Attachments: attachments,
 	})
 	if err != nil {
 		return err

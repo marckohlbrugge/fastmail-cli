@@ -9,24 +9,26 @@ import (
 
 // DraftEmail contains data for creating a draft.
 type DraftEmail struct {
-	To         []string
-	CC         []string
-	BCC        []string
-	Subject    string
-	TextBody   string
-	HTMLBody   string
-	From       string
-	InReplyTo  string
-	References []string
+	To          []string
+	CC          []string
+	BCC         []string
+	Subject     string
+	TextBody    string
+	HTMLBody    string
+	From        string
+	InReplyTo   string
+	References  []string
+	Attachments []Attachment // previously uploaded blobs to attach
 }
 
 // ForwardOptions contains options for forwarding an email.
 type ForwardOptions struct {
-	EmailID string
-	To      []string
-	CC      []string
-	From    string
-	Body    string
+	EmailID     string
+	To          []string
+	CC          []string
+	From        string
+	Body        string
+	Attachments []Attachment
 }
 
 // SaveDraft creates a new draft email.
@@ -90,6 +92,25 @@ func (c *Client) SaveDraft(draft DraftEmail) (string, error) {
 		emailObject["bodyValues"] = map[string]interface{}{"text": map[string]string{"value": draft.TextBody}}
 	}
 
+	// Attach uploaded blobs. Size is intentionally omitted: it is a
+	// server-set property, so sending a mismatched value would make the
+	// server reject the create (RFC 8620 §5.3).
+	if len(draft.Attachments) > 0 {
+		attachments := make([]map[string]interface{}, len(draft.Attachments))
+		for i, att := range draft.Attachments {
+			part := map[string]interface{}{
+				"blobId":      att.BlobID,
+				"type":        att.Type,
+				"disposition": "attachment",
+			}
+			if att.Name != "" {
+				part["name"] = att.Name
+			}
+			attachments[i] = part
+		}
+		emailObject["attachments"] = attachments
+	}
+
 	request := &Request{
 		Using: []string{CoreCapability, MailCapability},
 		MethodCalls: [][]interface{}{
@@ -137,7 +158,7 @@ func (c *Client) SaveDraft(draft DraftEmail) (string, error) {
 }
 
 // CreateReplyDraft creates a draft reply to an email.
-func (c *Client) CreateReplyDraft(emailID, body string, replyAll bool) (string, error) {
+func (c *Client) CreateReplyDraft(emailID, body string, replyAll bool, attachments []Attachment) (string, error) {
 	original, err := c.GetEmailByID(emailID)
 	if err != nil {
 		return "", err
@@ -225,13 +246,14 @@ func (c *Client) CreateReplyDraft(emailID, body string, replyAll bool) (string, 
 	htmlBody := formatReplyHTML(body, attribution, originalHTMLBody, originalTextBody)
 
 	return c.SaveDraft(DraftEmail{
-		To:         to,
-		CC:         cc,
-		Subject:    subject,
-		TextBody:   textBody,
-		HTMLBody:   htmlBody,
-		InReplyTo:  inReplyTo,
-		References: references,
+		To:          to,
+		CC:          cc,
+		Subject:     subject,
+		TextBody:    textBody,
+		HTMLBody:    htmlBody,
+		InReplyTo:   inReplyTo,
+		References:  references,
+		Attachments: attachments,
 	})
 }
 
@@ -380,11 +402,12 @@ Date: %s
 %s`, fromStr, toStr, origSubject, dateStr, originalBody)
 
 	return c.SaveDraft(DraftEmail{
-		To:       opts.To,
-		CC:       opts.CC,
-		From:     opts.From,
-		Subject:  subject,
-		TextBody: forwardBody,
+		To:          opts.To,
+		CC:          opts.CC,
+		From:        opts.From,
+		Subject:     subject,
+		TextBody:    forwardBody,
+		Attachments: opts.Attachments,
 	})
 }
 

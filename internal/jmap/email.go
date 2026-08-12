@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -111,7 +113,7 @@ func (c *Client) GetEmailByID(emailID string) (*Email, error) {
 					"accountId":            session.AccountID,
 					"ids":                  []string{emailID},
 					"properties":           emailFullProperties,
-					"bodyProperties":       []string{"partId", "blobId", "type", "size"},
+					"bodyProperties":       []string{"partId", "blobId", "type", "size", "name", "disposition"},
 					"fetchTextBodyValues":  true,
 					"fetchHTMLBodyValues":  true,
 				},
@@ -395,18 +397,37 @@ func (c *Client) DownloadBlob(blobID, name, contentType string) ([]byte, error) 
 		return nil, fmt.Errorf("download URL not available")
 	}
 
-	// Build download URL
-	url := session.DownloadURL
-	url = strings.ReplaceAll(url, "{accountId}", session.AccountID)
-	url = strings.ReplaceAll(url, "{blobId}", blobID)
-	url = strings.ReplaceAll(url, "{name}", name)
-	url = strings.ReplaceAll(url, "{type}", contentType)
+	if name == "" {
+		name = blobID
+	}
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
 
-	resp, err := c.httpClient.Get(url)
+	// Build download URL. Name and type come from the email (i.e. the
+	// sender), so they must be escaped before URL substitution.
+	downloadURL := session.DownloadURL
+	downloadURL = strings.ReplaceAll(downloadURL, "{accountId}", url.PathEscape(session.AccountID))
+	downloadURL = strings.ReplaceAll(downloadURL, "{blobId}", url.PathEscape(blobID))
+	downloadURL = strings.ReplaceAll(downloadURL, "{name}", url.PathEscape(name))
+	downloadURL = strings.ReplaceAll(downloadURL, "{type}", url.PathEscape(contentType))
+
+	req, err := http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("download failed: %s - %s", resp.Status, string(body))
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

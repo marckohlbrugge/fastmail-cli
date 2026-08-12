@@ -24,7 +24,8 @@ func setupTest(t *testing.T) (*cmdutil.Factory, *bytes.Buffer, *bytes.Buffer) {
 
 	httpmock.RegisterResponder("GET", "https://api.test.com/jmap/session",
 		httpmock.NewJsonResponderOrPanic(200, map[string]interface{}{
-			"apiUrl": "https://api.test.com/jmap/api",
+			"apiUrl":    "https://api.test.com/jmap/api",
+			"uploadUrl": "https://api.test.com/jmap/upload/{accountId}/",
 			"accounts": map[string]interface{}{
 				"account-1": map[string]interface{}{},
 			},
@@ -163,6 +164,106 @@ func TestNewCommand(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Contains(t, stdout.String(), "Draft created")
+	})
+
+	t.Run("creates draft with attachment", func(t *testing.T) {
+		f, stdout, _ := setupTest(t)
+
+		tmpDir := t.TempDir()
+		attachFile := filepath.Join(tmpDir, "report.pdf")
+		require.NoError(t, os.WriteFile(attachFile, []byte("pdf content"), 0644))
+
+		httpmock.RegisterResponder("POST", "https://api.test.com/jmap/upload/account-1/",
+			func(req *http.Request) (*http.Response, error) {
+				assert.Equal(t, "application/pdf", req.Header.Get("Content-Type"))
+				return httpmock.NewJsonResponse(200, map[string]interface{}{
+					"accountId": "account-1",
+					"blobId":    "blob-1",
+					"type":      "application/pdf",
+					"size":      11,
+				})
+			})
+
+		var emailSetAttachments []interface{}
+		httpmock.RegisterResponder("POST", "https://api.test.com/jmap/api",
+			func(req *http.Request) (*http.Response, error) {
+				var jmapReq jmap.Request
+				json.NewDecoder(req.Body).Decode(&jmapReq)
+
+				method := jmapReq.MethodCalls[0][0].(string)
+
+				switch method {
+				case "Mailbox/get":
+					return httpmock.NewJsonResponse(200, map[string]interface{}{
+						"methodResponses": [][]interface{}{
+							{"Mailbox/get", map[string]interface{}{
+								"list": []map[string]interface{}{
+									{"id": "drafts-1", "role": "drafts"},
+								},
+							}, "mailboxes"},
+						},
+					})
+				case "Identity/get":
+					return httpmock.NewJsonResponse(200, map[string]interface{}{
+						"methodResponses": [][]interface{}{
+							{"Identity/get", map[string]interface{}{
+								"list": []map[string]interface{}{
+									{"id": "id-1", "email": "me@example.com"},
+								},
+							}, "identities"},
+						},
+					})
+				case "Email/set":
+					args := jmapReq.MethodCalls[0][1].(map[string]interface{})
+					create := args["create"].(map[string]interface{})
+					draft := create["draft"].(map[string]interface{})
+					if atts, ok := draft["attachments"].([]interface{}); ok {
+						emailSetAttachments = atts
+					}
+					return httpmock.NewJsonResponse(200, map[string]interface{}{
+						"methodResponses": [][]interface{}{
+							{"Email/set", map[string]interface{}{
+								"created": map[string]interface{}{
+									"draft": map[string]interface{}{"id": "draft-3"},
+								},
+							}, "createDraft"},
+						},
+					})
+				default:
+					return httpmock.NewStringResponse(400, "unexpected: "+method), nil
+				}
+			})
+
+		cmd := NewCmdNew(f)
+		cmd.SetArgs([]string{"--to", "bob@example.com", "--subject", "Report", "--body", "See attached", "--attach", attachFile})
+		cmd.SetOut(stdout)
+		cmd.SetErr(&bytes.Buffer{})
+
+		err := cmd.Execute()
+
+		require.NoError(t, err)
+		assert.Contains(t, stdout.String(), "Draft created: draft-3")
+
+		require.Len(t, emailSetAttachments, 1)
+		att := emailSetAttachments[0].(map[string]interface{})
+		assert.Equal(t, "blob-1", att["blobId"])
+		assert.Equal(t, "application/pdf", att["type"])
+		assert.Equal(t, "report.pdf", att["name"])
+		assert.Equal(t, "attachment", att["disposition"])
+	})
+
+	t.Run("errors when attachment file is missing", func(t *testing.T) {
+		f, _, _ := setupTest(t)
+
+		cmd := NewCmdNew(f)
+		cmd.SetArgs([]string{"--to", "bob@example.com", "--subject", "Report", "--attach", "/nonexistent/file.pdf"})
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+
+		err := cmd.Execute()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read attachment")
 	})
 
 	t.Run("requires --to flag", func(t *testing.T) {
